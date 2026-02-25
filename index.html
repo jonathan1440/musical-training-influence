@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Musical Preferences Study</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F4EF;
+      --warm-white: #FFFDF9;
+      --ink: #2A2520;
+      --ink-light: #6B6158;
+      --ink-faint: #A89E94;
+      --terracotta: #B5705A;
+      --terracotta-dark: #9A5D49;
+      --terracotta-light: #D4A08E;
+      --terracotta-bg: #F5EBE6;
+      --border: #E4DDD5;
+      --error-red: #C0483B;
+      --error-bg: #FDF0EE;
+      --radius: 8px;
+      --shadow-md: 0 2px 8px rgba(42,37,32,0.07), 0 1px 3px rgba(42,37,32,0.04);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Source Sans 3', -apple-system, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Progress ── */
+    .progress-track {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 3px; background: var(--border); z-index: 100;
+    }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: var(--terracotta);
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ── Layout ── */
+    .wrapper { max-width: 620px; margin: 0 auto; padding: 48px 24px 96px; }
+
+    .study-title {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 1.55rem; font-weight: 400; line-height: 1.35;
+      text-align: center; margin-bottom: 6px;
+    }
+    .study-meta {
+      text-align: center; font-size: 0.8rem; color: var(--ink-faint);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 40px; padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Pages ── */
+    .page { display: none; animation: pageIn 0.35s ease-out; }
+    .page.active { display: block; }
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-label {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 1.2rem; font-weight: 400; margin-bottom: 20px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--warm-white); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+      box-shadow: var(--shadow-md); margin-bottom: 24px;
+    }
+    .card p {
+      font-size: 0.92rem; line-height: 1.72; margin-bottom: 14px;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .card p strong { font-weight: 600; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 24px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label {
+      display: block; font-size: 0.92rem; font-weight: 600; margin-bottom: 7px;
+    }
+    .field-hint {
+      font-size: 0.82rem; color: var(--ink-light);
+      font-style: italic; line-height: 1.5; margin-bottom: 9px;
+    }
+
+    select {
+      width: 100%; padding: 10px 38px 10px 14px;
+      font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem;
+      color: var(--ink); background: var(--cream);
+      border: 1px solid var(--border); border-radius: 6px;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B6158' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    select:focus { outline: none; border-color: var(--terracotta); }
+
+    /* ── Radio pills ── */
+    .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill-group input[type="radio"] {
+      position: absolute; opacity: 0; width: 0; height: 0;
+    }
+    .pill-group label {
+      display: inline-block; padding: 8px 18px;
+      font-size: 0.85rem; font-weight: 500; color: var(--ink-light);
+      background: var(--cream); border: 1px solid var(--border);
+      border-radius: 24px; cursor: pointer; transition: all 0.15s;
+      user-select: none;
+    }
+    .pill-group label:hover { border-color: var(--terracotta-light); color: var(--ink); }
+    .pill-group input:checked + label {
+      background: var(--terracotta); border-color: var(--terracotta); color: #fff;
+    }
+
+    /* ── Slider with +/- ── */
+    .slider-assembly {
+      display: flex; align-items: center; gap: 10px; margin-top: 4px;
+    }
+    .slider-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid var(--border); background: var(--cream);
+      color: var(--ink-light); font-size: 1.1rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+      user-select: none; line-height: 1;
+    }
+    .slider-btn:hover {
+      border-color: var(--terracotta); color: var(--terracotta);
+      background: var(--terracotta-bg);
+    }
+    .slider-btn:active { transform: scale(0.93); }
+
+    .slider-track-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px; border-radius: 3px;
+      background: var(--border); outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 24px; height: 24px;
+      border-radius: 50%; background: var(--terracotta);
+      border: 3px solid var(--warm-white);
+      box-shadow: 0 1px 4px rgba(42,37,32,0.18);
+      cursor: pointer; transition: transform 0.12s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+    input[type="range"]::-moz-range-thumb {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--terracotta); border: 3px solid var(--warm-white);
+      box-shadow: 0 1px 4px rgba(42,37,32,0.18); cursor: pointer;
+    }
+
+    .slider-labels { display: flex; justify-content: space-between; margin-top: 6px; }
+    .slider-labels span { font-size: 0.72rem; color: var(--ink-faint); line-height: 1.3; }
+    .slider-value-display {
+      text-align: center; font-size: 1.4rem; font-weight: 600;
+      color: var(--terracotta); min-width: 28px; margin-bottom: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Audio ── */
+    .audio-block {
+      background: var(--cream); border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 20px;
+    }
+    .audio-block audio { width: 100%; height: 40px; }
+
+    .excerpt-counter {
+      font-size: 0.75rem; font-weight: 600; color: var(--terracotta);
+      text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 14px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 11px 30px; font-family: 'Source Sans 3', sans-serif;
+      font-size: 0.9rem; font-weight: 600; border-radius: 6px;
+      border: none; cursor: pointer; transition: all 0.18s;
+    }
+    .btn-primary { background: var(--terracotta); color: #fff; }
+    .btn-primary:hover { background: var(--terracotta-dark); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled {
+      background: var(--border); color: var(--ink-faint); cursor: not-allowed;
+    }
+    .btn-row { display: flex; justify-content: center; margin-top: 28px; }
+
+    /* ── Validation ── */
+    .field.has-error select { border-color: var(--error-red); background-color: var(--error-bg); }
+    .field.has-error .pill-group label { border-color: #E8B4AE; }
+    .field.has-error .slider-assembly {
+      outline: 2px solid var(--error-red); outline-offset: 6px; border-radius: 4px;
+    }
+    .field-error { display: none; font-size: 0.78rem; color: var(--error-red); margin-top: 5px; }
+    .field.has-error .field-error { display: block; }
+
+    /* ── Thank you ── */
+    .thankyou-block { text-align: center; padding: 24px 0 0; }
+    .thankyou-block h2 {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 1.35rem; font-weight: 400; margin-bottom: 20px;
+    }
+    .thankyou-block p {
+      font-size: 0.92rem; color: var(--ink-light); line-height: 1.7; margin-bottom: 14px;
+    }
+    .thankyou-block a {
+      color: var(--terracotta); font-weight: 600;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .thankyou-block a:hover { color: var(--terracotta-dark); }
+
+    /* ── Overlay / toast ── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(247,244,239,0.92); z-index: 200;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px;
+    }
+    .overlay.visible { display: flex; }
+    .overlay-spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border); border-top-color: var(--terracotta);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay-text { font-size: 0.88rem; color: var(--ink-light); }
+
+    .toast {
+      display: none; position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%); background: var(--error-red); color: #fff;
+      padding: 12px 24px; border-radius: 8px; font-size: 0.85rem;
+      font-weight: 500; z-index: 300; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .toast.visible { display: block; animation: toastIn 0.3s ease-out; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @media (max-width: 480px) {
+      .wrapper { padding: 32px 16px 72px; }
+      .study-title { font-size: 1.3rem; }
+      .card { padding: 22px 20px 20px; }
+      .slider-btn { width: 32px; height: 32px; font-size: 1rem; }
+      .slider-value-display { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="wrapper">
+  <h1 class="study-title">The Influence of Musical Training on Preferences for Historical Musical Styles</h1>
+  <div class="study-meta">Research Study</div>
+
+  <!-- ═══ Consent ═══ -->
+  <div class="page active" data-page="consent">
+    <h2 class="section-label">Informed Consent</h2>
+    <div class="card">
+      <p>You are invited to participate in a research study examining how musical background may relate to preferences for different historical musical styles. This study is being conducted as part of an academic course.</p>
+      <p><strong>What you will do:</strong> You will answer a few brief demographic questions, then listen to 18 short musical excerpts (each under 20 seconds). After each excerpt, you will indicate whether you recognize it and rate how much you enjoy it. The survey should take approximately 10 to 15 minutes.</p>
+      <p><strong>Risks and benefits:</strong> There are no known risks beyond those of everyday life. There are no direct benefits to you, but your participation contributes to our understanding of musical preference.</p>
+      <p><strong>Confidentiality:</strong> Your responses are completely anonymous. No personally identifiable information is collected, and results will be reported only in aggregate.</p>
+      <p><strong>Voluntary participation:</strong> Participation is entirely voluntary. You may close this page at any time without penalty.</p>
+      <p>By clicking "I Agree" below, you confirm that you have read and understood this information and voluntarily consent to participate.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="navigateTo('demographics')">I Agree</button>
+    </div>
+  </div>
+
+  <!-- ═══ Demographics ═══ -->
+  <div class="page" data-page="demographics">
+    <h2 class="section-label">Demographic Information</h2>
+    <div class="card">
+      <div class="field" data-field="age">
+        <label class="field-label" for="sel-age">What is your age?</label>
+        <select id="sel-age">
+          <option value="">Select one</option>
+          <option>Under 18</option><option>18-24</option><option>25-34</option>
+          <option>35-44</option><option>45-54</option><option>55-64</option>
+          <option>65+</option><option>Prefer not to say</option>
+        </select>
+        <div class="field-error">Please select an option.</div>
+      </div>
+      <div class="field" data-field="gender">
+        <label class="field-label" for="sel-gender">What is your gender?</label>
+        <select id="sel-gender">
+          <option value="">Select one</option>
+          <option>Male</option><option>Female</option><option>Prefer not to say</option>
+        </select>
+        <div class="field-error">Please select an option.</div>
+      </div>
+      <div class="field" data-field="training">
+        <label class="field-label" for="sel-training">Are you musically trained?</label>
+        <p class="field-hint">Musical training is defined as 2+ years of consistent private classical lessons in an instrumental or vocal discipline.</p>
+        <select id="sel-training">
+          <option value="">Select one</option>
+          <option>Yes</option><option>No</option>
+        </select>
+        <div class="field-error">Please select an option.</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="validateDemographics()">Continue</button>
+    </div>
+  </div>
+
+  <!-- ═══ Listening intro ═══ -->
+  <div class="page" data-page="listening-intro">
+    <h2 class="section-label">Listening Portion</h2>
+    <div class="card">
+      <p>You will now hear 18 short musical excerpts, one at a time. After each, please answer the two questions that follow.</p>
+      <p>Use headphones if possible for the best experience. When you are ready, press "Begin" to start.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="beginListening()">Begin</button>
+    </div>
+  </div>
+
+  <!-- ═══ Excerpt (reused for each) ═══ -->
+  <div class="page" data-page="excerpt">
+    <div class="excerpt-counter" id="excerptCounter"></div>
+    <div class="card">
+      <div class="audio-block">
+        <audio controls preload="auto" controlsList="nodownload" id="excerptAudio">
+          <source id="excerptSource" src="" type="audio/mpeg">
+          Your browser does not support audio playback.
+        </audio>
+      </div>
+      <div class="field" data-field="heard">
+        <label class="field-label">Have you heard this excerpt before?</label>
+        <div class="pill-group" id="heardGroup">
+          <input type="radio" name="heard" id="heard-yes" value="Yes">
+          <label for="heard-yes">Yes</label>
+          <input type="radio" name="heard" id="heard-no" value="No">
+          <label for="heard-no">No</label>
+          <input type="radio" name="heard" id="heard-idk" value="I don't know">
+          <label for="heard-idk">I don't know</label>
+        </div>
+        <div class="field-error">Please select an option.</div>
+      </div>
+      <div class="field" data-field="rating">
+        <label class="field-label">How much do you like or dislike this excerpt?</label>
+        <div class="slider-value-display" id="ratingDisplay">&#8211;</div>
+        <div class="slider-assembly">
+          <button type="button" class="slider-btn" onclick="nudgeSlider(-1)" aria-label="Decrease rating">&minus;</button>
+          <div class="slider-track-wrapper">
+            <input type="range" id="ratingSlider" min="1" max="10" value="5" step="1">
+            <div class="slider-labels">
+              <span>Dislike<br>very much</span>
+              <span>Like<br>very much</span>
+            </div>
+          </div>
+          <button type="button" class="slider-btn" onclick="nudgeSlider(1)" aria-label="Increase rating">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="excerptNextBtn" onclick="nextExcerpt()">Next</button>
+    </div>
+  </div>
+
+  <!-- ═══ Thank You ═══ -->
+  <div class="page" data-page="thankyou">
+    <div class="thankyou-block">
+      <h2>Thank you for participating!</h2>
+      <p>If any excerpts grabbed your attention and you would like to listen to more, <a id="docLink" href="#" target="_blank" rel="noopener">click here</a> for a full list of musical pieces included in the survey.</p>
+      <p>Please do not share this information with others who have not yet completed the survey. Enjoy!</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-spinner"></div>
+  <div class="overlay-text">Submitting your responses...</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+// CONFIGURATION — YOUR FRIEND EDITS THESE THREE THINGS
+// ════════════════════════════════════════════════════
+
+const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL';
+
+const DOC_LINK = 'YOUR_GOOGLE_DOC_LINK';
+
+// Each id is stored in the spreadsheet so your friend can identify
+// which piece the participant heard. Update filenames as needed.
+const EXCERPTS = [
+  { id: 'piece_01', file: 'audio-samples/excerpt01.mp3' },
+  { id: 'piece_02', file: 'audio-samples/excerpt02.mp3' },
+  { id: 'piece_03', file: 'audio-samples/excerpt03.mp3' },
+  { id: 'piece_04', file: 'audio-samples/excerpt04.mp3' },
+  { id: 'piece_05', file: 'audio-samples/excerpt05.mp3' },
+  { id: 'piece_06', file: 'audio-samples/excerpt06.mp3' },
+  { id: 'piece_07', file: 'audio-samples/excerpt07.mp3' },
+  { id: 'piece_08', file: 'audio-samples/excerpt08.mp3' },
+  { id: 'piece_09', file: 'audio-samples/excerpt09.mp3' },
+  { id: 'piece_10', file: 'audio-samples/excerpt10.mp3' },
+  { id: 'piece_11', file: 'audio-samples/excerpt11.mp3' },
+  { id: 'piece_12', file: 'audio-samples/excerpt12.mp3' },
+  { id: 'piece_13', file: 'audio-samples/excerpt13.mp3' },
+  { id: 'piece_14', file: 'audio-samples/excerpt14.mp3' },
+  { id: 'piece_15', file: 'audio-samples/excerpt15.mp3' },
+  { id: 'piece_16', file: 'audio-samples/excerpt16.mp3' },
+  { id: 'piece_17', file: 'audio-samples/excerpt17.mp3' },
+  { id: 'piece_18', file: 'audio-samples/excerpt18.mp3' },
+];
+
+// ════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════
+
+let shuffled = [];
+let currentExcerpt = 0;
+let responses = [];
+let sliderTouched = false;
+
+// ════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.querySelector(`.page[data-page="${name}"]`);
+  if (target) {
+    target.classList.add('active');
+    target.style.animation = 'none';
+    target.offsetHeight;
+    target.style.animation = '';
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  updateProgress(name);
+}
+
+function navigateTo(name) { showPage(name); }
+
+function updateProgress(pageName) {
+  let pct = 0;
+  if (pageName === 'consent') pct = 0;
+  else if (pageName === 'demographics') pct = 5;
+  else if (pageName === 'listening-intro') pct = 10;
+  else if (pageName === 'excerpt') pct = 10 + (currentExcerpt / shuffled.length) * 85;
+  else if (pageName === 'thankyou') pct = 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// ════════════════════════════════════════════════════
+// DEMOGRAPHICS
+// ════════════════════════════════════════════════════
+
+function validateDemographics() {
+  let valid = true;
+  ['age', 'gender', 'training'].forEach(f => {
+    const el = document.querySelector(`.field[data-field="${f}"]`);
+    const sel = el.querySelector('select');
+    if (!sel.value) { el.classList.add('has-error'); valid = false; }
+    else { el.classList.remove('has-error'); }
+  });
+  if (valid) navigateTo('listening-intro');
+}
+
+document.querySelectorAll('.page[data-page="demographics"] select').forEach(sel => {
+  sel.addEventListener('change', () => sel.closest('.field').classList.remove('has-error'));
+});
+
+// ════════════════════════════════════════════════════
+// LISTENING PORTION
+// ════════════════════════════════════════════════════
+
+function fisherYates(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function beginListening() {
+  shuffled = fisherYates(EXCERPTS);
+  currentExcerpt = 0;
+  responses = [];
+  loadExcerpt(0);
+  showPage('excerpt');
+}
+
+function loadExcerpt(idx) {
+  const excerpt = shuffled[idx];
+  document.getElementById('excerptCounter').textContent =
+    `Excerpt ${idx + 1} of ${shuffled.length}`;
+
+  const audio = document.getElementById('excerptAudio');
+  const source = document.getElementById('excerptSource');
+  source.src = excerpt.file;
+  audio.load();
+
+  // Reset heard
+  document.querySelectorAll('input[name="heard"]').forEach(r => r.checked = false);
+
+  // Reset slider — show dash to force interaction
+  const slider = document.getElementById('ratingSlider');
+  slider.value = 5;
+  document.getElementById('ratingDisplay').textContent = '\u2013';
+  sliderTouched = false;
+
+  // Clear errors
+  document.querySelectorAll('.page[data-page="excerpt"] .field').forEach(f =>
+    f.classList.remove('has-error'));
+
+  document.getElementById('excerptNextBtn').textContent =
+    idx === shuffled.length - 1 ? 'Submit' : 'Next';
+
+  updateProgress('excerpt');
+}
+
+// Slider
+const slider = document.getElementById('ratingSlider');
+slider.addEventListener('input', () => {
+  document.getElementById('ratingDisplay').textContent = slider.value;
+  sliderTouched = true;
+  document.querySelector('.field[data-field="rating"]').classList.remove('has-error');
+});
+
+function nudgeSlider(delta) {
+  const s = document.getElementById('ratingSlider');
+  const newVal = Math.min(10, Math.max(1, parseInt(s.value) + delta));
+  s.value = newVal;
+  document.getElementById('ratingDisplay').textContent = newVal;
+  sliderTouched = true;
+  document.querySelector('.field[data-field="rating"]').classList.remove('has-error');
+}
+
+// Clear heard error
+document.querySelectorAll('input[name="heard"]').forEach(r => {
+  r.addEventListener('change', () =>
+    document.querySelector('.field[data-field="heard"]').classList.remove('has-error'));
+});
+
+function nextExcerpt() {
+  let valid = true;
+  if (!document.querySelector('input[name="heard"]:checked')) {
+    document.querySelector('.field[data-field="heard"]').classList.add('has-error');
+    valid = false;
+  }
+  if (!sliderTouched) {
+    document.querySelector('.field[data-field="rating"]').classList.add('has-error');
+    valid = false;
+  }
+  if (!valid) return;
+
+  responses.push({
+    excerptId: shuffled[currentExcerpt].id,
+    file: shuffled[currentExcerpt].file,
+    presentationOrder: currentExcerpt + 1,
+    heardBefore: document.querySelector('input[name="heard"]:checked').value,
+    rating: parseInt(document.getElementById('ratingSlider').value),
+  });
+
+  document.getElementById('excerptAudio').pause();
+
+  currentExcerpt++;
+  if (currentExcerpt < shuffled.length) {
+    loadExcerpt(currentExcerpt);
+    showPage('excerpt');
+  } else {
+    submitAll();
+  }
+}
+
+// ════════════════════════════════════════════════════
+// SUBMISSION
+// ════════════════════════════════════════════════════
+
+async function submitAll() {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('visible');
+
+  const payload = {
+    timestamp: new Date().toISOString(),
+    age: document.getElementById('sel-age').value,
+    gender: document.getElementById('sel-gender').value,
+    musicalTraining: document.getElementById('sel-training').value,
+    responses: responses,
+  };
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('Submit error:', err);
+    showToast('There was a problem submitting. Your responses may not have been recorded.');
+  }
+
+  overlay.classList.remove('visible');
+  showPage('thankyou');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 5000);
+}
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+
+document.getElementById('docLink').href = DOC_LINK;
+updateProgress('consent');
+</script>
+
+</body>
+</html>
