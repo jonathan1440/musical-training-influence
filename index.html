@@ -400,7 +400,7 @@
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIAGS--7aNyubrqkQC5GJQJPM6CUN_ACYKN2-Hjddc1PEZojDUygDTW2QCWnM9syH3/exec';
 
-const DOC_LINK = 'https://docs.google.com/spreadsheets/d/1Wi7UNGjZXI25smXQcOqEbeuJtKl5MwoOCBK2WnuK5GM/edit?gid=0#gid=0';
+const DOC_LINK = 'https://google.com';
 
 // Each id is stored in the spreadsheet so your friend can identify
 // which piece the participant heard. Update filenames as needed.
@@ -567,9 +567,11 @@ function nextExcerpt() {
   }
   if (!valid) return;
 
+  const excerpt = shuffled[currentExcerpt];
+  const excerptFileName = excerpt.file.split('/').pop();
   responses.push({
-    excerptId: shuffled[currentExcerpt].id,
-    file: shuffled[currentExcerpt].file,
+    excerptId: excerptFileName,
+    file: excerpt.file,
     presentationOrder: currentExcerpt + 1,
     heardBefore: document.querySelector('input[name="heard"]:checked').value,
     rating: parseInt(document.getElementById('ratingSlider').value),
