@@ -13,8 +13,8 @@
  *
  * Each survey submission becomes one row. Columns:
  *   Timestamp | Age | Gender | Musical Training |
- *   E1_ID | E1_Order | E1_Heard | E1_Rating |
- *   E2_ID | E2_Order | E2_Heard | E2_Rating |
+ *   E1_ID | E1_Order | E1_Heard | E1_Rating | E1_TimeSec |
+ *   E2_ID | E2_Order | E2_Heard | E2_Rating | E2_TimeSec |
  *   ... (repeated for all 18 excerpts)
  */
 
@@ -31,7 +31,8 @@ function doPost(e) {
           'E' + i + '_ID',
           'E' + i + '_Order',
           'E' + i + '_Heard',
-          'E' + i + '_Rating'
+          'E' + i + '_Rating',
+          'E' + i + '_TimeSec'
         );
       }
       sheet.appendRow(headers);
@@ -55,7 +56,8 @@ function doPost(e) {
         sorted[j].excerptId || '',
         sorted[j].presentationOrder || '',
         sorted[j].heardBefore || '',
-        sorted[j].rating || ''
+        sorted[j].rating || '',
+        sorted[j].timeOnPageSeconds !== undefined ? sorted[j].timeOnPageSeconds : ''
       );
     }
 

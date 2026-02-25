@@ -433,6 +433,7 @@ let shuffled = [];
 let currentExcerpt = 0;
 let responses = [];
 let sliderTouched = false;
+let excerptPageShownAt = 0;
 
 // ════════════════════════════════════════════════════
 // NAVIGATION
@@ -504,6 +505,7 @@ function beginListening() {
 }
 
 function loadExcerpt(idx) {
+  excerptPageShownAt = Date.now();
   const excerpt = shuffled[idx];
   document.getElementById('excerptCounter').textContent =
     `Excerpt ${idx + 1} of ${shuffled.length}`;
@@ -569,12 +571,14 @@ function nextExcerpt() {
 
   const excerpt = shuffled[currentExcerpt];
   const excerptFileName = excerpt.file.split('/').pop();
+  const timeOnPageSeconds = (Date.now() - excerptPageShownAt) / 1000;
   responses.push({
     excerptId: excerptFileName,
     file: excerpt.file,
     presentationOrder: currentExcerpt + 1,
     heardBefore: document.querySelector('input[name="heard"]:checked').value,
     rating: parseInt(document.getElementById('ratingSlider').value),
+    timeOnPageSeconds: Math.round(timeOnPageSeconds * 10) / 10,
   });
 
   document.getElementById('excerptAudio').pause();
