@@ -12,9 +12,9 @@
  * 6. Copy the deployment URL into your index.html SCRIPT_URL
  *
  * Each survey submission becomes one row. Columns:
- *   Timestamp | Age | Gender | Musical Training |
- *   E1_ID | E1_Order | E1_Heard | E1_Rating | E1_TimeSec |
- *   E2_ID | E2_Order | E2_Heard | E2_Rating | E2_TimeSec |
+ *   Timestamp | Age | Gender | Musical Training | Training Q1 | Training Q2 | Training Q3 |
+ *   Q1_ID | Q1_Order | Q1_Heard | Q1_Rating | Q1_TimeSec |
+ *   Q2_ID | Q2_Order | Q2_Heard | Q2_Rating | Q2_TimeSec |
  *   ... (repeated for all 18 excerpts)
  */
 
@@ -25,14 +25,14 @@ function doPost(e) {
 
     // Create header row if sheet is empty
     if (sheet.getLastRow() === 0) {
-      var headers = ['Timestamp', 'Age', 'Gender', 'Musical Training'];
+      var headers = ['Timestamp', 'Age', 'Gender', 'Musical Training', 'Training Q1', 'Training Q2', 'Training Q3'];
       for (var i = 1; i <= 18; i++) {
         headers.push(
-          'E' + i + '_ID',
-          'E' + i + '_Order',
-          'E' + i + '_Heard',
-          'E' + i + '_Rating',
-          'E' + i + '_TimeSec'
+          'Q' + i + '_ID',
+          'Q' + i + '_Order',
+          'Q' + i + '_Heard',
+          'Q' + i + '_Rating',
+          'Q' + i + '_TimeSec'
         );
       }
       sheet.appendRow(headers);
@@ -43,7 +43,10 @@ function doPost(e) {
       data.timestamp || new Date().toISOString(),
       data.age || '',
       data.gender || '',
-      data.musicalTraining || ''
+      data.musicalTraining || '',
+      data.trainingQ1 || '',
+      data.trainingQ2 || '',
+      data.trainingQ3 || ''
     ];
 
     // Append excerpt responses (sorted by presentation order)

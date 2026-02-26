@@ -307,13 +307,38 @@
         </select>
         <div class="field-error">Please select an option.</div>
       </div>
-      <div class="field" data-field="training">
-        <label class="field-label" for="sel-training">Are you musically trained?</label>
-        <p class="field-hint">Musical training is defined as 2+ years of consistent private classical lessons in an instrumental or vocal discipline.</p>
-        <select id="sel-training">
-          <option value="">Select one</option>
-          <option>Yes</option><option>No</option>
-        </select>
+    </div>
+
+    <h2 class="section-label" style="margin-top: 32px;">Musical training</h2>
+    <div class="card" id="training-card">
+      <div class="field" data-field="training-q1">
+        <label class="field-label">1. Have you taken regular (approximately weekly) one-on-one lessons in an instrument or voice?</label>
+        <div class="pill-group">
+          <input type="radio" name="training_q1" id="t1-yes" value="Yes">
+          <label for="t1-yes">Yes (see question 2)</label>
+          <input type="radio" name="training_q1" id="t1-no" value="No">
+          <label for="t1-no">No (non-musically trained)</label>
+        </div>
+        <div class="field-error">Please select an option.</div>
+      </div>
+      <div class="field training-followup" data-field="training-q2" id="training-q2-wrap" style="display: none;">
+        <label class="field-label">2. Was instruction focused on Western classical repertoire (sonatas, études, art songs, etc.) and/or technique (scales, arpeggios, etc.)?</label>
+        <div class="pill-group">
+          <input type="radio" name="training_q2" id="t2-yes" value="Yes">
+          <label for="t2-yes">Yes (see question 3)</label>
+          <input type="radio" name="training_q2" id="t2-no" value="No">
+          <label for="t2-no">No (non-musically trained)</label>
+        </div>
+        <div class="field-error">Please select an option.</div>
+      </div>
+      <div class="field training-followup" data-field="training-q3" id="training-q3-wrap" style="display: none;">
+        <label class="field-label">3. How long have you taken music lessons?</label>
+        <div class="pill-group">
+          <input type="radio" name="training_q3" id="t3-2plus" value="2plus">
+          <label for="t3-2plus">2 or more years (musically trained)</label>
+          <input type="radio" name="training_q3" id="t3-less" value="under2">
+          <label for="t3-less">Less than2 years (non-musically trained)</label>
+        </div>
         <div class="field-error">Please select an option.</div>
       </div>
     </div>
@@ -465,22 +490,93 @@ function updateProgress(pageName) {
 }
 
 // ════════════════════════════════════════════════════
-// DEMOGRAPHICS
+// DEMOGRAPHICS & MUSICAL TRAINING
 // ════════════════════════════════════════════════════
+
+function updateTrainingVisibility() {
+  const q1Yes = document.getElementById('t1-yes').checked;
+  const q2Wrap = document.getElementById('training-q2-wrap');
+  const q3Wrap = document.getElementById('training-q3-wrap');
+
+  if (!q1Yes) {
+    q2Wrap.style.display = 'none';
+    q3Wrap.style.display = 'none';
+    document.querySelectorAll('input[name="training_q2"]').forEach(r => { r.checked = false; });
+    document.querySelectorAll('input[name="training_q3"]').forEach(r => { r.checked = false; });
+    document.querySelector('.field[data-field="training-q2"]').classList.remove('has-error');
+    document.querySelector('.field[data-field="training-q3"]').classList.remove('has-error');
+    return;
+  }
+  q2Wrap.style.display = '';
+
+  const q2Yes = document.getElementById('t2-yes').checked;
+  if (!q2Yes) {
+    q3Wrap.style.display = 'none';
+    document.querySelectorAll('input[name="training_q3"]').forEach(r => { r.checked = false; });
+    document.querySelector('.field[data-field="training-q3"]').classList.remove('has-error');
+  } else {
+    q3Wrap.style.display = '';
+  }
+}
 
 function validateDemographics() {
   let valid = true;
-  ['age', 'gender', 'training'].forEach(f => {
+  ['age', 'gender'].forEach(f => {
     const el = document.querySelector(`.field[data-field="${f}"]`);
     const sel = el.querySelector('select');
     if (!sel.value) { el.classList.add('has-error'); valid = false; }
     else { el.classList.remove('has-error'); }
   });
+
+  const q1 = document.querySelector('input[name="training_q1"]:checked');
+  if (!q1) {
+    document.querySelector('.field[data-field="training-q1"]').classList.add('has-error');
+    valid = false;
+  } else {
+    document.querySelector('.field[data-field="training-q1"]').classList.remove('has-error');
+  }
+
+  if (q1 && q1.value === 'Yes') {
+    const q2 = document.querySelector('input[name="training_q2"]:checked');
+    if (!q2) {
+      document.querySelector('.field[data-field="training-q2"]').classList.add('has-error');
+      valid = false;
+    } else {
+      document.querySelector('.field[data-field="training-q2"]').classList.remove('has-error');
+    }
+    if (q2 && q2.value === 'Yes') {
+      const q3 = document.querySelector('input[name="training_q3"]:checked');
+      if (!q3) {
+        document.querySelector('.field[data-field="training-q3"]').classList.add('has-error');
+        valid = false;
+      } else {
+        document.querySelector('.field[data-field="training-q3"]').classList.remove('has-error');
+      }
+    }
+  }
+
   if (valid) navigateTo('listening-intro');
 }
 
 document.querySelectorAll('.page[data-page="demographics"] select').forEach(sel => {
   sel.addEventListener('change', () => sel.closest('.field').classList.remove('has-error'));
+});
+
+document.querySelectorAll('input[name="training_q1"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelector('.field[data-field="training-q1"]').classList.remove('has-error');
+    updateTrainingVisibility();
+  });
+});
+document.querySelectorAll('input[name="training_q2"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelector('.field[data-field="training-q2"]').classList.remove('has-error');
+    updateTrainingVisibility();
+  });
+});
+document.querySelectorAll('input[name="training_q3"]').forEach(r => {
+  r.addEventListener('change', () =>
+    document.querySelector('.field[data-field="training-q3"]').classList.remove('has-error'));
 });
 
 // ════════════════════════════════════════════════════
@@ -600,11 +696,21 @@ async function submitAll() {
   const overlay = document.getElementById('overlay');
   overlay.classList.add('visible');
 
+  const q1 = document.querySelector('input[name="training_q1"]:checked');
+  const q2 = document.querySelector('input[name="training_q2"]:checked');
+  const q3 = document.querySelector('input[name="training_q3"]:checked');
+  let musicalTraining = 'Non-musically trained';
+  if (q1 && q1.value === 'Yes' && q2 && q2.value === 'Yes' && q3 && q3.value === '2plus') {
+    musicalTraining = 'Musically trained';
+  }
   const payload = {
     timestamp: new Date().toISOString(),
     age: document.getElementById('sel-age').value,
     gender: document.getElementById('sel-gender').value,
-    musicalTraining: document.getElementById('sel-training').value,
+    musicalTraining,
+    trainingQ1: q1 ? q1.value : '',
+    trainingQ2: q2 ? q2.value : '',
+    trainingQ3: q3 ? q3.value : '',
     responses: responses,
   };
 
