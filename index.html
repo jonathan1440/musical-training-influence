@@ -509,8 +509,8 @@ function updateTrainingVisibility() {
   }
   q2Wrap.style.display = '';
 
-  const q2Yes = document.getElementById('t2-yes').checked;
-  if (!q2Yes) {
+  const q2_2plus = document.getElementById('t2-2plus').checked;
+  if (!q2_2plus) {
     q3Wrap.style.display = 'none';
     document.querySelectorAll('input[name="training_q3"]').forEach(r => { r.checked = false; });
     document.querySelector('.field[data-field="training-q3"]').classList.remove('has-error');
@@ -536,7 +536,7 @@ function validateDemographics() {
     document.querySelector('.field[data-field="training-q1"]').classList.remove('has-error');
   }
 
-  if (q1 && q1.value === 'Yes') {
+  if (q1 && q1.value === '2plus') {
     const q2 = document.querySelector('input[name="training_q2"]:checked');
     if (!q2) {
       document.querySelector('.field[data-field="training-q2"]').classList.add('has-error');
@@ -700,7 +700,7 @@ async function submitAll() {
   const q2 = document.querySelector('input[name="training_q2"]:checked');
   const q3 = document.querySelector('input[name="training_q3"]:checked');
   let musicalTraining = 'Non-musically trained';
-  if (q1 && q1.value === 'Yes' && q2 && q2.value === 'Yes' && q3 && q3.value === '2plus') {
+  if (q1 && q1.value === 'Yes' && q2 && q2.value === '2plus' && q3 && q3.value === 'Yes') {
     musicalTraining = 'Musically trained';
   }
   const payload = {
