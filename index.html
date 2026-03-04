@@ -198,7 +198,10 @@
     .btn-primary:disabled {
       background: var(--border); color: var(--ink-faint); cursor: not-allowed;
     }
-    .btn-row { display: flex; justify-content: center; margin-top: 28px; }
+    .btn-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+    .btn-row.btn-row-center { justify-content: center; }
+    .btn-row .btn-back-wrap { flex: 0 0 auto; }
+    .btn-row .btn-next-wrap { flex: 0 0 auto; margin-left: auto; }
 
     /* ── Validation ── */
     .field.has-error select { border-color: var(--error-red); background-color: var(--error-bg); }
@@ -281,8 +284,8 @@
       <p><strong>Questions or concerns:</strong> If you have any questions about this study, you may contact Susanna Ziesmer at susannaziesmer@southern.edu.</p>
       <p>By clicking "I Agree" below, you confirm that you are at least 18 years old, that you have read and understood the information above, and that you voluntarily consent to participate.</p>
     </div>
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="navigateTo('demographics')">I Agree</button>
+    <div class="btn-row btn-row-center">
+      <button class="btn btn-primary" onclick="navigateTo('demographics')">I Agree →</button>
     </div>
   </div>
 
@@ -344,7 +347,8 @@
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="validateDemographics()">Continue</button>
+      <span class="btn-back-wrap"><button type="button" class="btn btn-primary" onclick="navigateTo('consent')">← Back</button></span>
+      <span class="btn-next-wrap"><button class="btn btn-primary" onclick="validateDemographics()">Continue →</button></span>
     </div>
   </div>
 
@@ -356,7 +360,8 @@
       <p>Use headphones if possible for the best experience. When you are ready, press "Begin" to start.</p>
     </div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="beginListening()">Begin</button>
+      <span class="btn-back-wrap"><button type="button" class="btn btn-primary" onclick="navigateTo('demographics')">← Back</button></span>
+      <span class="btn-next-wrap"><button class="btn btn-primary" onclick="beginListening()">Begin →</button></span>
     </div>
   </div>
 
@@ -399,7 +404,8 @@
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-primary" id="excerptNextBtn" onclick="nextExcerpt()">Next</button>
+      <span class="btn-back-wrap"><button type="button" class="btn btn-primary" id="excerptBackBtn" onclick="backExcerpt()">← Back</button></span>
+      <span class="btn-next-wrap"><button class="btn btn-primary" id="excerptNextBtn" onclick="nextExcerpt()">Next →</button></span>
     </div>
   </div>
 
@@ -612,21 +618,23 @@ function loadExcerpt(idx) {
   source.src = excerpt.file;
   audio.load();
 
-  // Reset heard
-  document.querySelectorAll('input[name="heard"]').forEach(r => r.checked = false);
-
-  // Reset slider — show dash to force interaction
-  const slider = document.getElementById('ratingSlider');
-  slider.value = 5;
-  document.getElementById('ratingDisplay').textContent = '\u2013';
-  sliderTouched = false;
-
   // Clear errors
   document.querySelectorAll('.page[data-page="excerpt"] .field').forEach(f =>
     f.classList.remove('has-error'));
 
+  const saved = responses[idx];
+  if (saved) {
+    restoreExcerptForm(saved.heardBefore, saved.rating);
+  } else {
+    document.querySelectorAll('input[name="heard"]').forEach(r => r.checked = false);
+    const slider = document.getElementById('ratingSlider');
+    slider.value = 5;
+    document.getElementById('ratingDisplay').textContent = '\u2013';
+    sliderTouched = false;
+  }
+
   document.getElementById('excerptNextBtn').textContent =
-    idx === shuffled.length - 1 ? 'Submit' : 'Next';
+    idx === shuffled.length - 1 ? 'Submit →' : 'Next →';
 
   updateProgress('excerpt');
 }
@@ -654,6 +662,20 @@ document.querySelectorAll('input[name="heard"]').forEach(r => {
     document.querySelector('.field[data-field="heard"]').classList.remove('has-error'));
 });
 
+function buildCurrentResponse() {
+  const excerpt = shuffled[currentExcerpt];
+  const excerptFileName = excerpt.file.split('/').pop();
+  const timeOnPageSeconds = (Date.now() - excerptPageShownAt) / 1000;
+  return {
+    excerptId: excerptFileName,
+    file: excerpt.file,
+    presentationOrder: currentExcerpt + 1,
+    heardBefore: document.querySelector('input[name="heard"]:checked').value,
+    rating: parseInt(document.getElementById('ratingSlider').value),
+    timeOnPageSeconds: Math.round(timeOnPageSeconds * 10) / 10,
+  };
+}
+
 function nextExcerpt() {
   let valid = true;
   if (!document.querySelector('input[name="heard"]:checked')) {
@@ -666,18 +688,7 @@ function nextExcerpt() {
   }
   if (!valid) return;
 
-  const excerpt = shuffled[currentExcerpt];
-  const excerptFileName = excerpt.file.split('/').pop();
-  const timeOnPageSeconds = (Date.now() - excerptPageShownAt) / 1000;
-  responses.push({
-    excerptId: excerptFileName,
-    file: excerpt.file,
-    presentationOrder: currentExcerpt + 1,
-    heardBefore: document.querySelector('input[name="heard"]:checked').value,
-    rating: parseInt(document.getElementById('ratingSlider').value),
-    timeOnPageSeconds: Math.round(timeOnPageSeconds * 10) / 10,
-  });
-
+  responses[currentExcerpt] = buildCurrentResponse();
   document.getElementById('excerptAudio').pause();
 
   currentExcerpt++;
@@ -687,6 +698,29 @@ function nextExcerpt() {
   } else {
     submitAll();
   }
+}
+
+function restoreExcerptForm(heardBefore, rating) {
+  const heardRadio = document.querySelector(`input[name="heard"][value="${CSS.escape(heardBefore)}"]`);
+  if (heardRadio) heardRadio.checked = true;
+  const slider = document.getElementById('ratingSlider');
+  const display = document.getElementById('ratingDisplay');
+  if (rating >= 1 && rating <= 10) {
+    slider.value = rating;
+    display.textContent = rating;
+    sliderTouched = true;
+  }
+}
+
+function backExcerpt() {
+  if (currentExcerpt === 0) {
+    showPage('listening-intro');
+    return;
+  }
+  responses[currentExcerpt] = buildCurrentResponse();
+  currentExcerpt--;
+  loadExcerpt(currentExcerpt);
+  showPage('excerpt');
 }
 
 // ════════════════════════════════════════════════════
@@ -712,7 +746,7 @@ async function submitAll() {
     trainingQ1: q1 ? q1.value : '',
     trainingQ2: q2 ? q2.value : '',
     trainingQ3: q3 ? q3.value : '',
-    responses: responses,
+    responses: Array.from({ length: shuffled.length }, (_, i) => responses[i]).filter(Boolean),
   };
 
   try {
