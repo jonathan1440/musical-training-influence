@@ -717,7 +717,10 @@ function backExcerpt() {
     showPage('listening-intro');
     return;
   }
-  responses[currentExcerpt] = buildCurrentResponse();
+  const hasHeardSelection = document.querySelector('input[name="heard"]:checked');
+  if (hasHeardSelection && sliderTouched) {
+    responses[currentExcerpt] = buildCurrentResponse();
+  }
   currentExcerpt--;
   loadExcerpt(currentExcerpt);
   showPage('excerpt');
