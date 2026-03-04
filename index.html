@@ -203,24 +203,6 @@
     .btn-row .btn-back-wrap { flex: 0 0 auto; }
     .btn-row .btn-next-wrap { flex: 0 0 auto; margin-left: auto; }
 
-    /* ── Disabled excerpt notice & state ── */
-    .excerpt-disabled-msg {
-      display: none;
-      font-size: 0.8rem;
-      color: var(--ink-faint);
-      margin: 10px 2px 2px;
-    }
-    .excerpt-locked .excerpt-disabled-msg { display: block; }
-    .excerpt-locked .field[data-field="heard"] .pill-group label,
-    .excerpt-locked .field[data-field="rating"] .slider-assembly {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .excerpt-disabled-flash {
-      color: var(--error-red);
-      font-weight: 600;
-    }
-
     /* ── Validation ── */
     .field.has-error select { border-color: var(--error-red); background-color: var(--error-bg); }
     .field.has-error .pill-group label { border-color: #E8B4AE; }
@@ -393,9 +375,6 @@
           Your browser does not support audio playback.
         </audio>
       </div>
-      <div class="excerpt-disabled-msg" id="excerptDisabledMsg">
-        Excerpt must complete before answering questions.
-      </div>
       <div class="field" data-field="heard">
         <label class="field-label">Have you heard this excerpt before?</label>
         <div class="pill-group" id="heardGroup">
@@ -487,7 +466,6 @@ let currentExcerpt = 0;
 let responses = [];
 let sliderTouched = false;
 let excerptPageShownAt = 0;
-let listenedFlags = [];
 
 // ════════════════════════════════════════════════════
 // NAVIGATION
@@ -625,7 +603,6 @@ function beginListening() {
   shuffled = fisherYates(EXCERPTS);
   currentExcerpt = 0;
   responses = [];
-  listenedFlags = Array(shuffled.length).fill(false);
   loadExcerpt(0);
   showPage('excerpt');
 }
@@ -656,9 +633,6 @@ function loadExcerpt(idx) {
     sliderTouched = false;
   }
 
-  // Lock or unlock questions based on whether this excerpt has completed once
-  setExcerptQuestionsEnabled(Boolean(listenedFlags[idx]));
-
   document.getElementById('excerptNextBtn').textContent =
     idx === shuffled.length - 1 ? 'Submit →' : 'Next →';
 
@@ -668,23 +642,12 @@ function loadExcerpt(idx) {
 // Slider
 const slider = document.getElementById('ratingSlider');
 slider.addEventListener('input', () => {
-  if (!listenedFlags[currentExcerpt]) {
-    slider.value = 5;
-    document.getElementById('ratingDisplay').textContent = '\u2013';
-    sliderTouched = false;
-    flashExcerptDisabled();
-    return;
-  }
   document.getElementById('ratingDisplay').textContent = slider.value;
   sliderTouched = true;
   document.querySelector('.field[data-field="rating"]').classList.remove('has-error');
 });
 
 function nudgeSlider(delta) {
-  if (!listenedFlags[currentExcerpt]) {
-    flashExcerptDisabled();
-    return;
-  }
   const s = document.getElementById('ratingSlider');
   const newVal = Math.min(10, Math.max(1, parseInt(s.value) + delta));
   s.value = newVal;
@@ -693,55 +656,11 @@ function nudgeSlider(delta) {
   document.querySelector('.field[data-field="rating"]').classList.remove('has-error');
 }
 
-// Clear heard error / gate when locked
+// Clear heard error
 document.querySelectorAll('input[name="heard"]').forEach(r => {
-  r.addEventListener('change', () => {
-    if (!listenedFlags[currentExcerpt]) {
-      r.checked = false;
-      flashExcerptDisabled();
-      return;
-    }
-    document.querySelector('.field[data-field="heard"]').classList.remove('has-error');
-  });
+  r.addEventListener('change', () =>
+    document.querySelector('.field[data-field="heard"]').classList.remove('has-error'));
 });
-
-const DISABLED_TOOLTIP = 'Excerpt must complete before answering questions';
-
-function flashExcerptDisabled() {
-  const msg = document.getElementById('excerptDisabledMsg');
-  if (!msg) return;
-  msg.classList.add('excerpt-disabled-flash');
-  msg.textContent = 'Excerpt must complete before answering questions';
-  setTimeout(() => {
-    msg.classList.remove('excerpt-disabled-flash');
-  }, 600);
-}
-
-function setExcerptQuestionsEnabled(enabled) {
-  const page = document.querySelector('.page[data-page="excerpt"]');
-  const disabledMsg = document.getElementById('excerptDisabledMsg');
-  const heardRadios = document.querySelectorAll('input[name="heard"]');
-  const sliderInput = document.getElementById('ratingSlider');
-  const sliderButtons = document.querySelectorAll('.slider-btn');
-  const nextBtn = document.getElementById('excerptNextBtn');
-  if (enabled) {
-    page.classList.remove('excerpt-locked');
-    disabledMsg.removeAttribute('title');
-    heardRadios.forEach(r => { r.removeAttribute('title'); });
-    sliderInput.removeAttribute('title');
-    sliderButtons.forEach(b => { b.removeAttribute('title'); });
-    nextBtn.disabled = false;
-    nextBtn.removeAttribute('title');
-  } else {
-    page.classList.add('excerpt-locked');
-    disabledMsg.setAttribute('title', DISABLED_TOOLTIP);
-    heardRadios.forEach(r => { r.setAttribute('title', DISABLED_TOOLTIP); });
-    sliderInput.setAttribute('title', DISABLED_TOOLTIP);
-    sliderButtons.forEach(b => { b.setAttribute('title', DISABLED_TOOLTIP); });
-    nextBtn.disabled = true;
-    nextBtn.setAttribute('title', DISABLED_TOOLTIP);
-  }
-}
 
 function buildCurrentResponse() {
   const excerpt = shuffled[currentExcerpt];
@@ -767,19 +686,7 @@ function nextExcerpt() {
     document.querySelector('.field[data-field="rating"]').classList.add('has-error');
     valid = false;
   }
-  if (!listenedFlags[currentExcerpt]) {
-    // Locked: do not advance, flash message instead
-    flashExcerptDisabled();
-    return;
-  }
-  if (!valid) {
-    return;
-  }
-
-  // Extra guard: should not happen because Next is disabled while locked
-  if (!listenedFlags[currentExcerpt]) {
-    return;
-  }
+  if (!valid) return;
 
   responses[currentExcerpt] = buildCurrentResponse();
   document.getElementById('excerptAudio').pause();
@@ -874,12 +781,6 @@ function showToast(msg) {
 
 document.getElementById('docLink').href = DOC_LINK;
 updateProgress('consent');
-
-// Ensure questions start locked until first excerpt finishes
-document.getElementById('excerptAudio').addEventListener('ended', () => {
-  listenedFlags[currentExcerpt] = true;
-  setExcerptQuestionsEnabled(true);
-});
 </script>
 
 </body>
