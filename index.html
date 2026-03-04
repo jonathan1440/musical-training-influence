@@ -393,7 +393,7 @@
         <div class="slider-assembly">
           <button type="button" class="slider-btn" onclick="nudgeSlider(-1)" aria-label="Decrease rating">&minus;</button>
           <div class="slider-track-wrapper">
-            <input type="range" id="ratingSlider" min="1" max="10" value="5" step="1">
+            <input type="range" id="ratingSlider" min="1" max="10" value="5.5" step="0.5">
             <div class="slider-labels">
               <span>Dislike<br>very much</span>
               <span>Like<br>very much</span>
@@ -628,7 +628,7 @@ function loadExcerpt(idx) {
   } else {
     document.querySelectorAll('input[name="heard"]').forEach(r => r.checked = false);
     const slider = document.getElementById('ratingSlider');
-    slider.value = 5;
+    slider.value = 5.5;
     document.getElementById('ratingDisplay').textContent = '\u2013';
     sliderTouched = false;
   }
@@ -642,16 +642,27 @@ function loadExcerpt(idx) {
 // Slider
 const slider = document.getElementById('ratingSlider');
 slider.addEventListener('input', () => {
-  document.getElementById('ratingDisplay').textContent = slider.value;
+  const val = parseFloat(slider.value);
+  const snap = (val === 5.5 && sliderTouched) ? 6 : (val === 5.5 ? 5.5 : Math.round(val));
+  slider.value = snap;
+  document.getElementById('ratingDisplay').textContent = snap === 5.5 ? '\u2013' : String(snap);
   sliderTouched = true;
   document.querySelector('.field[data-field="rating"]').classList.remove('has-error');
 });
 
 function nudgeSlider(delta) {
   const s = document.getElementById('ratingSlider');
-  const newVal = Math.min(10, Math.max(1, parseInt(s.value) + delta));
+  const current = parseFloat(s.value);
+  let newVal;
+  if (current === 5.5 && delta < 0) {
+    newVal = 5;
+  } else if (current === 5.5 && delta > 0) {
+    newVal = 6;
+  } else {
+    newVal = Math.min(10, Math.max(1, Math.round(current) + delta));
+  }
   s.value = newVal;
-  document.getElementById('ratingDisplay').textContent = newVal;
+  document.getElementById('ratingDisplay').textContent = String(newVal);
   sliderTouched = true;
   document.querySelector('.field[data-field="rating"]').classList.remove('has-error');
 }
@@ -673,7 +684,7 @@ function buildCurrentResponse() {
     file: excerpt.file,
     presentationOrder: currentExcerpt + 1,
     heardBefore: document.querySelector('input[name="heard"]:checked').value,
-    rating: parseInt(document.getElementById('ratingSlider').value),
+    rating: (() => { const r = parseFloat(document.getElementById('ratingSlider').value); return r === 5.5 ? 5.5 : Math.round(r); })(),
     timeOnPageSeconds,
   };
 }
@@ -708,8 +719,9 @@ function restoreExcerptForm(heardBefore, rating) {
   const slider = document.getElementById('ratingSlider');
   const display = document.getElementById('ratingDisplay');
   if (rating >= 1 && rating <= 10) {
-    slider.value = rating;
-    display.textContent = rating;
+    const val = Math.min(10, Math.max(1, Math.round(rating * 10) / 10));
+    slider.value = val;
+    display.textContent = val === 5.5 ? '\u2013' : String(val);
     sliderTouched = true;
   }
 }
