@@ -665,14 +665,16 @@ document.querySelectorAll('input[name="heard"]').forEach(r => {
 function buildCurrentResponse() {
   const excerpt = shuffled[currentExcerpt];
   const excerptFileName = excerpt.file.split('/').pop();
-  const timeOnPageSeconds = (Date.now() - excerptPageShownAt) / 1000;
+  const segmentSeconds = (Date.now() - excerptPageShownAt) / 1000;
+  const priorSeconds = responses[currentExcerpt]?.timeOnPageSeconds ?? 0;
+  const timeOnPageSeconds = Math.round((priorSeconds + segmentSeconds) * 10) / 10;
   return {
     excerptId: excerptFileName,
     file: excerpt.file,
     presentationOrder: currentExcerpt + 1,
     heardBefore: document.querySelector('input[name="heard"]:checked').value,
     rating: parseInt(document.getElementById('ratingSlider').value),
-    timeOnPageSeconds: Math.round(timeOnPageSeconds * 10) / 10,
+    timeOnPageSeconds,
   };
 }
 
