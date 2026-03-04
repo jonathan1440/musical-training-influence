@@ -255,6 +255,24 @@
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
+    /* ── Survey paused (toggle in config) ── */
+    .survey-paused-view {
+      display: none;
+      position: fixed; inset: 0;
+      background: var(--cream);
+      z-index: 250;
+      align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    body.survey-paused .survey-paused-view { display: flex; }
+    .survey-paused-view p {
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-size: 1.25rem;
+      color: var(--ink-light);
+      text-align: center;
+      max-width: 320px;
+    }
+
     @media (max-width: 480px) {
       .wrapper { padding: 32px 16px 72px; }
       .study-title { font-size: 1.3rem; }
@@ -265,6 +283,10 @@
   </style>
 </head>
 <body>
+
+<div class="survey-paused-view" id="surveyPausedView" aria-live="polite">
+  <p>Survey paused. Please check back later.</p>
+</div>
 
 <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
 
@@ -433,6 +455,9 @@
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxFxeLckC4DfI9LzbiO03ctNhftNj477jnFFwJSff2PqjYffYwXz2KEYTtjaBd2qG_m/exec';
 
 const DOC_LINK = 'https://docs.google.com/document/d/1tSjmO4ZMf4k4G3dDxgjqvxSf7bM0ApEHz4EQSbxrni0/';
+
+// Set to true to show "Survey paused" message instead of the survey
+const SURVEY_PAUSED = true;
 
 // Each id is stored in the spreadsheet so your friend can identify
 // which piece the participant heard. Update filenames as needed.
@@ -793,8 +818,12 @@ function showToast(msg) {
 // INIT
 // ════════════════════════════════════════════════════
 
-document.getElementById('docLink').href = DOC_LINK;
-updateProgress('consent');
+if (SURVEY_PAUSED) {
+  document.body.classList.add('survey-paused');
+} else {
+  document.getElementById('docLink').href = DOC_LINK;
+  updateProgress('consent');
+}
 </script>
 
 </body>
