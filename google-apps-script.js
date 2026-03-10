@@ -13,8 +13,9 @@
  *
  * Each survey submission becomes one row. Columns:
  *   Timestamp | Age | Gender | Musical Training | Training Q1 | Training Q2 | Training Q3 |
- *   Q1_ID | Q1_Order | Q1_Heard | Q1_Rating | Q1_TimeSec |
- *   Q2_ID | Q2_Order | Q2_Heard | Q2_Rating | Q2_TimeSec |
+ *   Last Studied Instrument | Listen Classical Frequency | Familiar Classical Overall |
+ *   Q1_ID | Q1_Order | Q1_Familiarity | Q1_Rating | Q1_TimeSec |
+ *   Q2_ID | Q2_Order | Q2_Familiarity | Q2_Rating | Q2_TimeSec |
  *   ... (repeated for all 18 excerpts)
  */
 
@@ -25,12 +26,12 @@ function doPost(e) {
 
     // Create header row if sheet is empty
     if (sheet.getLastRow() === 0) {
-      var headers = ['Timestamp', 'Age', 'Gender', 'Musical Training', 'Training Q1', 'Training Q2', 'Training Q3'];
+      var headers = ['Timestamp', 'Age', 'Gender', 'Musical Training', 'Training Q1', 'Training Q2', 'Training Q3', 'Last Studied Instrument', 'Listen Classical Frequency', 'Familiar Classical Overall'];
       for (var i = 1; i <= 18; i++) {
         headers.push(
           'Q' + i + '_ID',
           'Q' + i + '_Order',
-          'Q' + i + '_Heard',
+          'Q' + i + '_Familiarity',
           'Q' + i + '_Rating',
           'Q' + i + '_TimeSec'
         );
@@ -46,7 +47,10 @@ function doPost(e) {
       data.musicalTraining || '',
       data.trainingQ1 || '',
       data.trainingQ2 || '',
-      data.trainingQ3 || ''
+      data.trainingQ3 || '',
+      data.lastStudiedInstrument || '',
+      data.listenClassicalFrequency || '',
+      data.familiarClassicalOverall || ''
     ];
 
     // Append excerpt responses (sorted by presentation order)
@@ -58,7 +62,7 @@ function doPost(e) {
       row.push(
         sorted[j].excerptId || '',
         sorted[j].presentationOrder || '',
-        sorted[j].heardBefore || '',
+        sorted[j].familiarity !== undefined ? sorted[j].familiarity : '',
         sorted[j].rating || '',
         sorted[j].timeOnPageSeconds !== undefined ? sorted[j].timeOnPageSeconds : ''
       );
