@@ -9,7 +9,7 @@
  *    - Execute as: Me
  *    - Who has access: Anyone
  * 5. Authorize when prompted
- * 6. Copy the deployment URL into your index.html SCRIPT_URL
+ * 6. Copy the deployment URL into public/studies/musical-training/index.html SCRIPT_URL
  *
  * Each survey submission becomes one row. Columns:
  *   Timestamp | Age | Gender | Musical Training | Training Q1 | Training Q2 | Training Q3 |
