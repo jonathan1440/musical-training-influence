@@ -54,6 +54,14 @@
       font-size: 1.55rem; font-weight: 400; line-height: 1.35;
       text-align: center; margin-bottom: 6px;
     }
+    .home-link {
+      text-align: center; margin: 0 0 18px; font-size: 0.85rem;
+    }
+    .home-link a {
+      color: var(--terracotta); font-weight: 600; text-decoration: none;
+    }
+    .home-link a:hover { color: var(--terracotta-dark); }
+
     .study-meta {
       text-align: center; font-size: 0.8rem; color: var(--ink-faint);
       letter-spacing: 0.06em; text-transform: uppercase;
@@ -302,6 +310,7 @@
 <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
 
 <div class="wrapper">
+  <p class="home-link"><a href="/">Susanna Ziesmer</a></p>
   <h1 class="study-title">The Influence of Musical Training on Preferences for Historical Musical Styles</h1>
   <div class="study-meta">Research Study</div>
 
@@ -517,24 +526,24 @@ const SURVEY_PAUSED = false;
 // Each id is stored in the spreadsheet so your friend can identify
 // which piece the participant heard. Update filenames as needed.
 const EXCERPTS = [
-  { id: 'piece_01', file: 'audio-samples/excerpt01.mp3' },
-  { id: 'piece_02', file: 'audio-samples/excerpt02.mp3' },
-  { id: 'piece_03', file: 'audio-samples/excerpt03.mp3' },
-  { id: 'piece_04', file: 'audio-samples/excerpt04.mp3' },
-  { id: 'piece_05', file: 'audio-samples/excerpt05.mp3' },
-  { id: 'piece_06', file: 'audio-samples/excerpt06.mp3' },
-  { id: 'piece_07', file: 'audio-samples/excerpt07.mp3' },
-  { id: 'piece_08', file: 'audio-samples/excerpt08.mp3' },
-  { id: 'piece_09', file: 'audio-samples/excerpt09.mp3' },
-  { id: 'piece_10', file: 'audio-samples/excerpt10.mp3' },
-  { id: 'piece_11', file: 'audio-samples/excerpt11.mp3' },
-  { id: 'piece_12', file: 'audio-samples/excerpt12.mp3' },
-  { id: 'piece_13', file: 'audio-samples/excerpt13.mp3' },
-  { id: 'piece_14', file: 'audio-samples/excerpt14.mp3' },
-  { id: 'piece_15', file: 'audio-samples/excerpt15.mp3' },
-  { id: 'piece_16', file: 'audio-samples/excerpt16.mp3' },
-  { id: 'piece_17', file: 'audio-samples/excerpt17.mp3' },
-  { id: 'piece_18', file: 'audio-samples/excerpt18.mp3' },
+  { id: 'piece_01', file: '/audio-samples/excerpt01.mp3' },
+  { id: 'piece_02', file: '/audio-samples/excerpt02.mp3' },
+  { id: 'piece_03', file: '/audio-samples/excerpt03.mp3' },
+  { id: 'piece_04', file: '/audio-samples/excerpt04.mp3' },
+  { id: 'piece_05', file: '/audio-samples/excerpt05.mp3' },
+  { id: 'piece_06', file: '/audio-samples/excerpt06.mp3' },
+  { id: 'piece_07', file: '/audio-samples/excerpt07.mp3' },
+  { id: 'piece_08', file: '/audio-samples/excerpt08.mp3' },
+  { id: 'piece_09', file: '/audio-samples/excerpt09.mp3' },
+  { id: 'piece_10', file: '/audio-samples/excerpt10.mp3' },
+  { id: 'piece_11', file: '/audio-samples/excerpt11.mp3' },
+  { id: 'piece_12', file: '/audio-samples/excerpt12.mp3' },
+  { id: 'piece_13', file: '/audio-samples/excerpt13.mp3' },
+  { id: 'piece_14', file: '/audio-samples/excerpt14.mp3' },
+  { id: 'piece_15', file: '/audio-samples/excerpt15.mp3' },
+  { id: 'piece_16', file: '/audio-samples/excerpt16.mp3' },
+  { id: 'piece_17', file: '/audio-samples/excerpt17.mp3' },
+  { id: 'piece_18', file: '/audio-samples/excerpt18.mp3' },
 ];
 
 const FAMILIARITY_LABELS = {

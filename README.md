@@ -1,86 +1,91 @@
-# Music Preference Survey
+# susannaziesmer.com
 
-A static survey for GitHub Pages that records anonymous responses to a Google Sheet.
+Portfolio and research studies for Susanna Ziesmer. Next.js App Router, exported as a static site and deployed to GitHub Pages at [susannaziesmer.com](https://susannaziesmer.com).
 
-## Quick Start
+The visual theme matches the previous single-page site: cream `#F7F4EF`, warm-white cards, ink text, terracotta `#B5705A`, a centered column about 620px wide, Libre Baskerville titles, and Source Sans 3 body text.
 
-### 1. Set Up the Google Sheet Backend
+## Pages
 
-1. Create a new **Google Sheet** (this is where responses will land).
-2. Go to **Extensions → Apps Script**.
-3. Delete any default code. Paste the entire contents of `google-apps-script.js`.
-4. Click **Deploy → New deployment**.
-5. Choose type: **Web app**.
-6. Set "Execute as" to **Me**.
-7. Set "Who has access" to **Anyone**.
-8. Click **Deploy**, then **Authorize access** when prompted.
-9. Copy the **Web app URL** (it looks like `https://script.google.com/macros/s/.../exec`).
+| Path | What it is |
+| --- | --- |
+| `/` | Portfolio. About and experience are taken from Susanna Ziesmer’s CV. |
+| `/studies/musical-training/` | Existing study: The Influence of Musical Training on Preferences for Historical Musical Styles. Same survey as the old `index.html`, including the audio excerpts. |
+| `/studies/ai-decision-making/` | Questionnaire: Effect of Repeated AI Usage on Decision Making Speed. |
 
-### 2. Configure the Survey
+## Try it locally
 
-Open `index.html` and find the `CONFIGURATION` section near the bottom. Update three things:
-
-| Variable | What to put |
-|----------|-------------|
-| `SCRIPT_URL` | The Apps Script web app URL from step 1 |
-| `DOC_LINK` | A Google Doc link listing all the pieces (shown on the thank-you page) |
-| `EXCERPTS` array | Update the `file` paths if your mp3 filenames differ from the defaults |
-
-The `id` field for each excerpt is what gets stored in the spreadsheet. You can name these whatever is meaningful for analysis (e.g., `baroque_01`, `romantic_03`, or just leave the defaults).
-
-### 3. Add Audio Files
-
-Put your 18 mp3 files in the `audio-samples/` directory at the root of the repo. The default config expects files named `excerpt01.mp3` through `excerpt18.mp3`.
-
-```
-your-repo/
-├── index.html
-├── audio-samples/
-│   ├── excerpt01.mp3
-│   ├── excerpt02.mp3
-│   └── ... (18 total)
-├── google-apps-script.js   (not deployed, just for reference)
-└── README.md
+```bash
+npm install
+npm run dev
 ```
 
-### 4. Deploy to GitHub Pages
+Open [http://localhost:3000](http://localhost:3000). The AI questionnaire is at [http://localhost:3000/studies/ai-decision-making/](http://localhost:3000/studies/ai-decision-making/).
 
-1. Create a new GitHub repository.
-2. Push all files (`index.html`, `audio-samples/` folder, etc.).
-3. Go to **Settings → Pages**.
-4. Set source to your branch (usually `main`), root `/`.
-5. Your survey goes live at `https://yourusername.github.io/repo-name/`.
+Production build:
 
-## How the Data Looks
+```bash
+npm run build
+```
 
-Each submission is one row in your Google Sheet:
+The static site is written to `out/`. `npm test` checks the questionnaire page order, the consent gate, the group branches, and which pages record time.
 
-| Timestamp | Age | Gender | Musical Training | E1_ID | E1_Order | E1_Heard | E1_Rating | E2_ID | ... |
-|-----------|-----|--------|-----------------|-------|----------|----------|-----------|-------|-----|
-| 2026-02-25T... | 25-34 | Female | Yes | piece_14 | 1 | No | 7 | piece_03 | ... |
+### Walk the AI questionnaire
 
-- **E1** through **E18** refer to the 1st through 18th excerpt *as presented to that participant* (presentation order).
-- **E1_ID** tells you which actual piece it was (e.g., `piece_14`).
-- **E1_Order** is the presentation position (always 1 for E1, 2 for E2, etc., but included for clarity).
+1. On page 1, choose **No** and type a name, then Next. The study stops. Nothing is saved.
+2. Reload. Choose **Yes**, type a name, and continue.
+3. Answer every demographics question. The group is **Control** or **Experimental**. The questionnaire does not assign it.
+4. Phase I is a decision page, then a confidence page, repeated. Only the decision pages are timed.
+5. Phase II instructions differ by group. Experimental adds the required ChatGPT thread. Phase II is decisions only: no confidence question, and no time recorded.
+6. Phase III instructions differ by group. Experimental adds “No AI assistance is permitted for this phase.” Decision, then confidence, same count as Phase I. Only the decision pages are timed.
+7. The completion page differs by group. Experimental asks the participant to share the ChatGPT thread with susannaziesmer@southern.edu, subject `AI Study - [their name]`.
 
-Because excerpts are randomized per participant, the same column position will contain different pieces across rows. The `_ID` field is the key for grouping responses by piece during analysis.
+There is no post-activity survey page. The consent form mentions one because that sentence is part of the study procedure. The page list does not include it.
 
-## How Randomization Works
+## Scenario counts and wording
 
-On page load, the excerpt list is shuffled using Fisher-Yates. Each participant sees all 18 excerpts in a unique random order. The order is recorded alongside each response.
+Edit only [`lib/scenarios.ts`](lib/scenarios.ts).
 
-## Design Notes
+- `PHASE_I_COUNT` defaults to 5.
+- `PHASE_II_COUNT` defaults to 10.
+- Phase III uses `PHASE_I_COUNT`.
+- Instruction pages use those same numbers.
+- Scenario text and both option labels are placeholders. Replace a draft in that file when the real wording is ready.
 
-- **Paginated flow**: One excerpt per screen. No back button. The participant can't revisit previous answers.
-- **Slider**: Snaps to integer values 1-10 with +/- buttons. The display shows a dash until the participant interacts, which forces an active choice (no silent default of 5).
-- **Validation**: Every question must be answered before proceeding. Errors are highlighted inline.
-- **Mobile-friendly**: Works on phones. Headphone recommendation is shown before the listening portion.
-- **`no-cors` mode**: The fetch to Google Apps Script uses `no-cors` because Apps Script doesn't support CORS headers. This means we can't read the response, but submissions still go through. If something fails, a toast notification appears.
+## AI study spreadsheet
 
-## Updating the Consent Paragraph
+Use a **new** Google Sheet. Do not reuse the musical-training sheet.
 
-The consent text in `index.html` is a placeholder. Replace it with whatever your IRB or instructor requires. It's in the first `<div class="card">` inside the consent page section.
+1. Create a new Google Sheet.
+2. Extensions → Apps Script. Delete the sample code and paste [`google-apps-script-ai-study.js`](google-apps-script-ai-study.js).
+3. Deploy → New deployment → Web app. Execute as **Me**. Who has access: **Anyone**.
+4. Copy the web app URL (`https://script.google.com/macros/s/.../exec`).
+5. Put it in `NEXT_PUBLIC_AI_STUDY_SCRIPT_URL`. For local builds, use `.env.local` (gitignored). For GitHub Pages, add a repository secret with that same name. The workflow passes the secret into `npm run build`.
+6. Rebuild. The static export bakes the URL in at build time. Changing it later requires another build.
 
-## Re-deploying After Changes
+Do not commit the URL.
 
-If you update the Apps Script code, you need to create a **new deployment** (Deploy → New deployment) and update the URL in `index.html`. Editing the script alone doesn't update the live web app, only new deployments do.
+The script creates a tab named **AI Decision Study** and appends one row per completed session. Consent **No** never sends a request.
+
+A row contains: timestamp, full name, age, gender, generative-AI frequency, primary use, use for decisions, group, each choice, each confidence rating, and seconds on each Phase I and Phase III decision page. Phase II columns are choices only. Confidence pages, instructions, Phase II, and completion are not timed.
+
+If you change the scenario counts after real responses exist, use a new tab or spreadsheet. The header row is written once, from the first submission.
+
+Editing the Apps Script does not update a deployment that is already live. Deploy a new version and, if the URL changes, rebuild the site with the new URL.
+
+The fetch uses `no-cors`, same as the music study, because Apps Script does not send CORS headers. The browser cannot read the response. A failed request shows a toast on the completion page.
+
+## Musical-training spreadsheet
+
+That survey still posts to the Apps Script URL already set in [`public/studies/musical-training/index.html`](public/studies/musical-training/index.html). The script for that sheet is [`google-apps-script.js`](google-apps-script.js). Leave that URL and that sheet alone when you set up the AI study.
+
+Audio files live in `public/audio-samples/`.
+
+## GitHub Pages
+
+The custom domain is `susannaziesmer.com`, from [`public/CNAME`](public/CNAME). The static export copies that file into `out/`, which is what Pages publishes.
+
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds on pushes to `main` and deploys the `out/` directory.
+
+**Before this replaces the live site,** set the repository’s Pages source to **GitHub Actions** (Settings → Pages → Build and deployment → Source). The previous site was published from the branch root. After this change, the branch root is the Next.js project, not the finished HTML. Publishing the branch root would take the domain down until Actions is the source.
+
+`NEXT_PUBLIC_AI_STUDY_SCRIPT_URL` can be empty. The site still builds. Completed AI sessions are not saved until the secret is set and the site is rebuilt.
