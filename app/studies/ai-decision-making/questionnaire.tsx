@@ -12,20 +12,22 @@ import {
   CONFIDENCE_OPTIONS,
   CONFIDENCE_QUESTION,
   GENDER_OPTIONS,
-  GROUP_OPTIONS,
-  GROUP_QUESTION,
+  SESSION_OPTIONS,
+  SESSION_QUESTION,
   buildSteps,
   buildSubmission,
   completionParagraphs,
   completionSubject,
   consentCanContinue,
   demographicsComplete,
+  isSession,
   phaseIInstructionParagraphs,
   phaseIIInstructionParagraphs,
   phaseIIIInstructionParagraphs,
-  type Group,
+  sessionToGroup,
   type PhaseChoiceAnswer,
   type PhaseTimedAnswer,
+  type Session,
   type SessionRecord,
 } from "@/lib/study-flow";
 
@@ -97,7 +99,7 @@ export function Questionnaire() {
   const [aiFrequency, setAiFrequency] = useState("");
   const [aiPrimaryUse, setAiPrimaryUse] = useState("");
   const [aiDecisionFrequency, setAiDecisionFrequency] = useState("");
-  const [group, setGroup] = useState<Group | "">("");
+  const [session, setSession] = useState<Session | "">("");
   const [phase1, setPhase1] = useState<PhaseTimedAnswer[]>([]);
   const [phase2, setPhase2] = useState<PhaseChoiceAnswer[]>([]);
   const [phase3, setPhase3] = useState<PhaseTimedAnswer[]>([]);
@@ -173,9 +175,9 @@ export function Questionnaire() {
         aiFrequency,
         aiPrimaryUse,
         aiDecisionFrequency,
-        group,
+        session,
       });
-      if (!complete || (group !== "Control" && group !== "Experimental")) {
+      if (!complete) {
         setShowError(true);
         return;
       }
@@ -236,7 +238,7 @@ export function Questionnaire() {
       if (step.phase === 3) setPhase3(nextPhase3);
 
       const nextIndex = index + 1;
-      if (steps[nextIndex]?.kind === "completion" && (group === "Control" || group === "Experimental")) {
+      if (steps[nextIndex]?.kind === "completion" && isSession(session)) {
         const record: SessionRecord = {
           fullName: fullName.trim(),
           age,
@@ -244,7 +246,7 @@ export function Questionnaire() {
           aiFrequency,
           aiPrimaryUse,
           aiDecisionFrequency,
-          group,
+          session,
           phase1: nextPhase1,
           phase2,
           phase3: nextPhase3,
@@ -328,21 +330,23 @@ export function Questionnaire() {
           <RadioOptions name="ai-frequency" legend="How frequently do you use generative AI (e.g. ChatGPT, Claude, Gemini)?" options={AI_FREQUENCY_OPTIONS} value={aiFrequency} onChange={(value) => { setAiFrequency(value); setShowError(false); }} invalid={showError && !aiFrequency} layout="pills" />
           <RadioOptions name="ai-primary" legend="What do you primarily use generative AI for?" options={AI_PRIMARY_USE_OPTIONS} value={aiPrimaryUse} onChange={(value) => { setAiPrimaryUse(value); setShowError(false); }} invalid={showError && !aiPrimaryUse} layout="pills" />
           <RadioOptions name="ai-decisions" legend="How often do you use generative AI to help you make decisions?" options={AI_DECISION_OPTIONS} value={aiDecisionFrequency} onChange={(value) => { setAiDecisionFrequency(value); setShowError(false); }} invalid={showError && !aiDecisionFrequency} layout="pills" />
-          <RadioOptions name="group" legend={GROUP_QUESTION} options={GROUP_OPTIONS} value={group} onChange={(value) => { setGroup(value as Group); setShowError(false); }} invalid={showError && group !== "Control" && group !== "Experimental"} layout="pills" />
+          <RadioOptions name="session" legend={SESSION_QUESTION} options={SESSION_OPTIONS} value={session} onChange={(value) => { setSession(value as Session); setShowError(false); }} invalid={showError && !isSession(session)} layout="pills" />
         </div>
       </>
     );
   } else if (step.kind === "instructions") {
     pageName = `instructions-${step.phase}`;
     action = "Begin";
-    const branchGroup: Group = group === "Experimental" ? "Experimental" : "Control";
-    branch = step.phase === 1 ? "" : branchGroup;
+    const branchGroup = isSession(session) ? sessionToGroup(session) : null;
+    branch = step.phase === 1 || !isSession(session) ? "" : session;
     const paragraphs =
       step.phase === 1
         ? phaseIInstructionParagraphs(PHASE_I_COUNT)
-        : step.phase === 2
+        : branchGroup && step.phase === 2
           ? phaseIIInstructionParagraphs(PHASE_II_COUNT, branchGroup)
-          : phaseIIIInstructionParagraphs(PHASE_I_COUNT, branchGroup);
+          : branchGroup
+            ? phaseIIIInstructionParagraphs(PHASE_I_COUNT, branchGroup)
+            : [];
     body = (
       <>
         <h2 className="section-label">{`Phase ${step.phase === 1 ? "I" : step.phase === 2 ? "II" : "III"} instructions`}</h2>
@@ -396,9 +400,9 @@ export function Questionnaire() {
     );
   } else {
     pageName = "completion";
-    const branchGroup: Group = group === "Experimental" ? "Experimental" : "Control";
-    branch = branchGroup;
-    const paragraphs = completionParagraphs(branchGroup, fullName);
+    const branchGroup = isSession(session) ? sessionToGroup(session) : null;
+    branch = isSession(session) ? session : "";
+    const paragraphs = branchGroup ? completionParagraphs(branchGroup, fullName) : [];
     body = (
       <>
         <h2 className="section-label">Study completion</h2>

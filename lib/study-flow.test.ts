@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  CONFIDENCE_QUESTION,
+  SESSION_OPTIONS,
+  SESSION_QUESTION,
   buildSteps,
   buildSubmission,
   completionParagraphs,
   consentCanContinue,
   demographicsComplete,
+  phaseIInstructionParagraphs,
   phaseIIInstructionParagraphs,
   phaseIIIInstructionParagraphs,
+  sessionToGroup,
   type SessionRecord,
 } from "./study-flow.ts";
 
@@ -46,18 +52,42 @@ test("consent No stops and an empty name does not continue", () => {
   assert.equal(consentCanContinue("", "Ada Lovelace"), "incomplete");
 });
 
-test("demographics require every answer, including group", () => {
+test("demographics require every answer, including session", () => {
   const complete = {
     age: "18-19",
     gender: "Female",
     aiFrequency: "Daily",
     aiPrimaryUse: "Academic work",
     aiDecisionFrequency: "Rarely",
-    group: "Experimental",
+    session: "Wednesday",
   };
   assert.equal(demographicsComplete(complete), true);
-  assert.equal(demographicsComplete({ ...complete, group: "" }), false);
+  assert.equal(demographicsComplete({ ...complete, session: "" }), false);
+  assert.equal(demographicsComplete({ ...complete, session: "Control" }), false);
+  assert.equal(demographicsComplete({ ...complete, session: "Experimental" }), false);
   assert.equal(demographicsComplete({ ...complete, aiPrimaryUse: "" }), false);
+});
+
+test("Monday maps to Control and Wednesday maps to Experimental", () => {
+  assert.equal(sessionToGroup("Monday"), "Control");
+  assert.equal(sessionToGroup("Wednesday"), "Experimental");
+
+  const mondayTwo = phaseIIInstructionParagraphs(10, sessionToGroup("Monday")).join(" ");
+  const wednesdayTwo = phaseIIInstructionParagraphs(10, sessionToGroup("Wednesday")).join(" ");
+  assert.equal(mondayTwo.includes("ChatGPT"), false);
+  assert.match(wednesdayTwo, /required to utilize ChatGPT/);
+  assert.match(wednesdayTwo, /one conversation thread/);
+
+  const mondayThree = phaseIIIInstructionParagraphs(5, sessionToGroup("Monday")).join(" ");
+  const wednesdayThree = phaseIIIInstructionParagraphs(5, sessionToGroup("Wednesday")).join(" ");
+  assert.equal(mondayThree.includes("No AI assistance"), false);
+  assert.match(wednesdayThree, /No AI assistance is permitted for this phase/);
+
+  const mondayEnd = completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace").join(" ");
+  const wednesdayEnd = completionParagraphs(sessionToGroup("Wednesday"), "Ada Lovelace").join(" ");
+  assert.equal(mondayEnd, "You have completed the study! Thank you for participating!");
+  assert.match(wednesdayEnd, /susannaziesmer@southern.edu/);
+  assert.match(wednesdayEnd, /AI Study - Ada Lovelace/);
 });
 
 test("only phase II instructions, phase III instructions, and completion change with group", () => {
@@ -82,6 +112,36 @@ test("only phase II instructions, phase III instructions, and completion change 
   assert.equal(experimentalEnd.includes("post-activity"), false);
 });
 
+test("participant-facing copy does not say Control or Experimental", () => {
+  const facing = [
+    SESSION_QUESTION,
+    ...SESSION_OPTIONS,
+    CONFIDENCE_QUESTION,
+    ...phaseIInstructionParagraphs(5),
+    ...phaseIIInstructionParagraphs(10, sessionToGroup("Monday")),
+    ...phaseIIInstructionParagraphs(10, sessionToGroup("Wednesday")),
+    ...phaseIIIInstructionParagraphs(5, sessionToGroup("Monday")),
+    ...phaseIIIInstructionParagraphs(5, sessionToGroup("Wednesday")),
+    ...completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace"),
+    ...completionParagraphs(sessionToGroup("Wednesday"), "Ada Lovelace"),
+  ];
+  for (const text of facing) {
+    assert.doesNotMatch(text, /\bControl\b/);
+    assert.doesNotMatch(text, /\bExperimental\b/);
+  }
+
+  const pages = [
+    new URL("../app/studies/ai-decision-making/questionnaire.tsx", import.meta.url),
+    new URL("../app/studies/ai-decision-making/page.tsx", import.meta.url),
+    new URL("../components/consent-copy.tsx", import.meta.url),
+  ];
+  for (const page of pages) {
+    const source = readFileSync(page, "utf8");
+    assert.doesNotMatch(source, /\bControl\b/, String(page));
+    assert.doesNotMatch(source, /\bExperimental\b/, String(page));
+  }
+});
+
 test("the sheet row stores timed seconds only for phase I and phase III decisions", () => {
   const record: SessionRecord = {
     fullName: "Ada Lovelace",
@@ -90,7 +150,7 @@ test("the sheet row stores timed seconds only for phase I and phase III decision
     aiFrequency: "Weekly",
     aiPrimaryUse: "Research",
     aiDecisionFrequency: "Sometimes",
-    group: "Control",
+    session: "Monday",
     phase1: [{ choice: "Option 1", confidence: "Moderately", seconds: 4.2 }],
     phase2: [{ choice: "Option 2" }, { choice: "Option 1" }],
     phase3: [{ choice: "Option 2", confidence: "Very much", seconds: 3.1 }],
@@ -118,4 +178,12 @@ test("the sheet row stores timed seconds only for phase I and phase III decision
   assert.equal(values[headers.indexOf("Phase I Scenario 1 Seconds")], 4.2);
   assert.equal(values[headers.indexOf("Phase III Scenario 1 Seconds")], 3.1);
   assert.equal(values.length, headers.length);
+  assert.equal(headers.indexOf("Group"), 7);
+  assert.equal(headers.includes("Session"), false);
+  assert.equal(values[headers.indexOf("Group")], "Control");
+
+  const wednesday = buildSubmission({ ...record, session: "Wednesday" }, "2026-11-06T00:00:00.000Z");
+  assert.equal(wednesday.headers.indexOf("Group"), 7);
+  assert.equal(wednesday.headers.includes("Session"), false);
+  assert.equal(wednesday.values[wednesday.headers.indexOf("Group")], "Experimental");
 });

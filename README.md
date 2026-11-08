@@ -27,17 +27,17 @@ Production build:
 npm run build
 ```
 
-The static site is written to `out/`. `npm test` checks the questionnaire page order, the consent gate, the group branches, and which pages record time.
+The static site is written to `out/`. `npm test` checks the questionnaire page order, the consent gate, the session mapping, and which pages record time.
 
 ### Walk the AI questionnaire
 
 1. On page 1, choose **No** and type a name, then Next. The study stops. Nothing is saved.
 2. Reload. Choose **Yes**, type a name, and continue.
-3. Answer every demographics question. The group is **Control** or **Experimental**. The questionnaire does not assign it.
+3. Answer every demographics question. The session question is **Monday** or **Wednesday**. The questionnaire does not assign it. Participants never see the words Control or Experimental. Monday is stored as Control: Phase II has no AI instruction, Phase III has no “no AI” line, and completion is the thank-you only. Wednesday is stored as Experimental: Phase II requires the ChatGPT thread, Phase III says no AI assistance is permitted, and completion includes the ChatGPT handoff.
 4. Phase I is a decision page, then a confidence page, repeated. Only the decision pages are timed.
-5. Phase II instructions differ by group. Experimental adds the required ChatGPT thread. Phase II is decisions only: no confidence question, and no time recorded.
-6. Phase III instructions differ by group. Experimental adds “No AI assistance is permitted for this phase.” Decision, then confidence, same count as Phase I. Only the decision pages are timed.
-7. The completion page differs by group. Experimental asks the participant to share the ChatGPT thread with susannaziesmer@southern.edu, subject `AI Study - [their name]`.
+5. Phase II instructions differ by session. Wednesday adds the required ChatGPT thread. Phase II is decisions only: no confidence question, and no time recorded.
+6. Phase III instructions differ by session. Wednesday adds “No AI assistance is permitted for this phase.” Decision, then confidence, same count as Phase I. Only the decision pages are timed.
+7. The completion page differs by session. Wednesday asks the participant to share the ChatGPT thread with susannaziesmer@southern.edu, subject `AI Study - [their name]`.
 
 There is no post-activity survey page. The consent form mentions one because that sentence is part of the study procedure. The page list does not include it.
 
@@ -67,6 +67,8 @@ Do not commit the URL.
 The script creates a tab named **AI Decision Study** and appends one row per completed session. Consent **No** never sends a request.
 
 A row contains: timestamp, full name, age, gender, generative-AI frequency, primary use, use for decisions, group, each choice, each confidence rating, and seconds on each Phase I and Phase III decision page. Phase II columns are choices only. Confidence pages, instructions, Phase II, and completion are not timed.
+
+The Group column stays where it is and stores the mapped condition: Monday → Control, Wednesday → Experimental. The live sheet already has a response row, so a Session column was not added. Inserting one would shift Group away from the existing header.
 
 If you change the scenario counts after real responses exist, use a new tab or spreadsheet. The header row is written once, from the first submission.
 

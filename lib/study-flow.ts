@@ -1,4 +1,5 @@
 export type Group = "Control" | "Experimental";
+export type Session = "Monday" | "Wednesday";
 
 export type Step =
   | { kind: "consent" }
@@ -28,7 +29,7 @@ export const AI_PRIMARY_USE_OPTIONS = [
   "I don't use AI",
 ] as const;
 export const AI_DECISION_OPTIONS = ["Never", "Rarely", "Sometimes", "Often", "Very often"] as const;
-export const GROUP_OPTIONS = ["Control", "Experimental"] as const;
+export const SESSION_OPTIONS = ["Monday", "Wednesday"] as const;
 export const CONFIDENCE_OPTIONS = [
   "Not at all",
   "Slightly",
@@ -39,8 +40,7 @@ export const CONFIDENCE_OPTIONS = [
 
 export const CONFIDENCE_QUESTION = "How confident do you feel in your decision?";
 
-export const GROUP_QUESTION =
-  "Which group are you in for the experiment? (Researchers assign the group. If unsure, ask.)";
+export const SESSION_QUESTION = "Which session are you attending?";
 
 const HANDOFF_EMAIL = "susannaziesmer@southern.edu";
 
@@ -50,7 +50,7 @@ export type Demographics = {
   aiFrequency: string;
   aiPrimaryUse: string;
   aiDecisionFrequency: string;
-  group: string;
+  session: string;
 };
 
 export type PhaseTimedAnswer = {
@@ -70,7 +70,7 @@ export type SessionRecord = {
   aiFrequency: string;
   aiPrimaryUse: string;
   aiDecisionFrequency: string;
-  group: Group;
+  session: Session;
   phase1: PhaseTimedAnswer[];
   phase2: PhaseChoiceAnswer[];
   phase3: PhaseTimedAnswer[];
@@ -119,6 +119,15 @@ export function consentCanContinue(consent: string, fullName: string): "ok" | "i
   return "ok";
 }
 
+export function isSession(value: string): value is Session {
+  return value === "Monday" || value === "Wednesday";
+}
+
+/** Monday is the no-AI condition. Wednesday is the ChatGPT condition. */
+export function sessionToGroup(session: Session): Group {
+  return session === "Monday" ? "Control" : "Experimental";
+}
+
 export function demographicsComplete(demographics: Demographics): boolean {
   return Boolean(
     demographics.age &&
@@ -126,7 +135,7 @@ export function demographicsComplete(demographics: Demographics): boolean {
       demographics.aiFrequency &&
       demographics.aiPrimaryUse &&
       demographics.aiDecisionFrequency &&
-      (demographics.group === "Control" || demographics.group === "Experimental"),
+      isSession(demographics.session),
   );
 }
 
@@ -166,6 +175,8 @@ export function completionParagraphs(group: Group, fullName: string): string[] {
 }
 
 export function buildSubmission(record: SessionRecord, timestamp: string): SheetPayload {
+  // Group stays in this position and stores sessionToGroup(session).
+  // The live sheet already has a response row, so Session is not a column.
   const headers = [
     "Timestamp",
     "Full Name",
@@ -184,7 +195,7 @@ export function buildSubmission(record: SessionRecord, timestamp: string): Sheet
     record.aiFrequency,
     record.aiPrimaryUse,
     record.aiDecisionFrequency,
-    record.group,
+    sessionToGroup(record.session),
   ];
 
   record.phase1.forEach((item, index) => {
