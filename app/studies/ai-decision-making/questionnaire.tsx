@@ -24,10 +24,13 @@ import {
   demographicsComplete,
   explanationCanContinue,
   isSession,
+  phaseHeading,
   phaseIInstructionParagraphs,
   phaseIIInstructionParagraphs,
   phaseIIIInstructionParagraphs,
+  scenarioHeading,
   sessionToGroup,
+  type InstructionBlock,
   type PhaseChoiceAnswer,
   type PhaseTimedAnswer,
   type Session,
@@ -82,13 +85,40 @@ function RadioOptions({
   );
 }
 
-function InstructionBody({ paragraphs }: { paragraphs: string[] }) {
+function InstructionBody({ blocks }: { blocks: InstructionBlock[] }) {
   return (
     <div className="card">
-      {paragraphs.map((paragraph) => (
-        <p key={paragraph}>{paragraph}</p>
-      ))}
+      {blocks.map((block) => {
+        if (block.type === "bullets") {
+          return (
+            <ul key={block.items.join("|")}>
+              {block.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.type === "emphasis") {
+          return (
+            <p key={block.text}>
+              <strong>{block.text}</strong>
+            </p>
+          );
+        }
+        return <p key={block.text}>{block.text}</p>;
+      })}
     </div>
+  );
+}
+
+function StudyChrome({ showTitle, pageLabel }: { showTitle: boolean; pageLabel: string }) {
+  return (
+    <>
+      {showTitle ? (
+        <h1 className="study-title">Effect of Repeated AI Usage on Decision Making Speed</h1>
+      ) : null}
+      <p className="study-meta">{pageLabel}</p>
+    </>
   );
 }
 
@@ -305,11 +335,7 @@ export function Questionnaire() {
     return (
       <>
         <div className="wrapper" data-page="stopped">
-          <p className="home-link">
-            <a href="/">Susanna Ziesmer</a>
-          </p>
-          <h1 className="study-title">Effect of Repeated AI Usage on Decision Making Speed</h1>
-          <p className="study-meta">Research Study</p>
+          <StudyChrome showTitle pageLabel="Research Study" />
           <h2 className="section-label">Study information</h2>
           <div className="card">
             <p>You selected No. You cannot continue.</p>
@@ -384,7 +410,7 @@ export function Questionnaire() {
     action = "Begin";
     const branchGroup = isSession(session) ? sessionToGroup(session) : null;
     branch = step.phase === 1 || !isSession(session) ? "" : session;
-    const paragraphs =
+    const blocks =
       step.phase === 1
         ? phaseIInstructionParagraphs(PHASE_I_COUNT)
         : branchGroup && step.phase === 2
@@ -394,8 +420,8 @@ export function Questionnaire() {
             : [];
     body = (
       <>
-        <h2 className="section-label">{`Phase ${step.phase === 1 ? "I" : step.phase === 2 ? "II" : "III"} instructions`}</h2>
-        <InstructionBody paragraphs={paragraphs} />
+        <h2 className="section-label">{phaseHeading(step.phase)}</h2>
+        <InstructionBody blocks={blocks} />
       </>
     );
   } else if (step.kind === "decision") {
@@ -404,7 +430,7 @@ export function Questionnaire() {
       step.phase === 1 ? phaseIScenarios[step.index] : step.phase === 2 ? phaseIIScenarios[step.index] : phaseIIIScenarios[step.index];
     body = (
       <>
-        <p className="scenario-kicker">{scenario.label}</p>
+        <p className="scenario-kicker">{scenarioHeading(step.phase, step.index)}</p>
         <div className="card">
           <p>{scenario.text}</p>
           <RadioOptions
@@ -427,7 +453,7 @@ export function Questionnaire() {
     const explanationId = `explanation-${step.phase}-${step.index}`;
     body = (
       <>
-        <h2 className="section-label">Explanation</h2>
+        <p className="scenario-kicker">{scenarioHeading(step.phase, step.index)}</p>
         <div className="card">
           <div className={`field${showError && !explanation.trim() ? " has-error" : ""}`}>
             <label className="field-label" htmlFor={explanationId}>
@@ -489,11 +515,10 @@ export function Questionnaire() {
         data-timed={timed ? "yes" : "no"}
         data-branch={branch}
       >
-        <p className="home-link">
-          <a href="/">Susanna Ziesmer</a>
-        </p>
-        <h1 className="study-title">Effect of Repeated AI Usage on Decision Making Speed</h1>
-        <p className="study-meta">Research Study · {pageLabel}</p>
+        <StudyChrome
+          showTitle={step.kind === "consent"}
+          pageLabel={`Research Study · ${pageLabel}`}
+        />
         {body}
         {step.kind !== "completion" ? (
           <div className="btn-row">
