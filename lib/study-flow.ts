@@ -1,12 +1,12 @@
 export type Group = "Control" | "Experimental";
-export type Session = "Monday" | "Wednesday";
+export type Session = "Monday" | "Tuesday";
 
 export type Step =
   | { kind: "consent" }
   | { kind: "demographics" }
   | { kind: "instructions"; phase: 1 | 2 | 3 }
   | { kind: "decision"; phase: 1 | 2 | 3; index: number; timed: boolean }
-  | { kind: "confidence"; phase: 1 | 3; index: number }
+  | { kind: "explanation"; phase: 1 | 2 | 3; index: number; confidence: boolean }
   | { kind: "completion" };
 
 export const AGE_OPTIONS = ["18-19", "20-21", "22+", "Prefer not to say"] as const;
@@ -29,7 +29,7 @@ export const AI_PRIMARY_USE_OPTIONS = [
   "I don't use AI",
 ] as const;
 export const AI_DECISION_OPTIONS = ["Never", "Rarely", "Sometimes", "Often", "Very often"] as const;
-export const SESSION_OPTIONS = ["Monday", "Wednesday"] as const;
+export const SESSION_OPTIONS = ["Monday", "Tuesday"] as const;
 export const CONFIDENCE_OPTIONS = [
   "Not at all",
   "Slightly",
@@ -39,6 +39,7 @@ export const CONFIDENCE_OPTIONS = [
 ] as const;
 
 export const CONFIDENCE_QUESTION = "How confident do you feel in your decision?";
+export const EXPLANATION_PROMPT = "Briefly explain (in a sentence or less) why you made your decision:";
 
 export const SESSION_QUESTION = "Which session are you attending?";
 
@@ -57,10 +58,12 @@ export type PhaseTimedAnswer = {
   choice: string;
   confidence: string;
   seconds: number;
+  explanation: string;
 };
 
 export type PhaseChoiceAnswer = {
   choice: string;
+  explanation: string;
 };
 
 export type SessionRecord = {
@@ -77,6 +80,7 @@ export type SessionRecord = {
 };
 
 export type SheetPayload = {
+  declined?: boolean;
   headers: string[];
   values: (string | number)[];
 };
@@ -94,18 +98,19 @@ export function buildSteps(phaseICount: number, phaseIICount: number): Step[] {
 
   for (let index = 0; index < phaseICount; index += 1) {
     steps.push({ kind: "decision", phase: 1, index, timed: true });
-    steps.push({ kind: "confidence", phase: 1, index });
+    steps.push({ kind: "explanation", phase: 1, index, confidence: true });
   }
 
   steps.push({ kind: "instructions", phase: 2 });
   for (let index = 0; index < phaseIICount; index += 1) {
     steps.push({ kind: "decision", phase: 2, index, timed: false });
+    steps.push({ kind: "explanation", phase: 2, index, confidence: false });
   }
 
   steps.push({ kind: "instructions", phase: 3 });
   for (let index = 0; index < phaseICount; index += 1) {
     steps.push({ kind: "decision", phase: 3, index, timed: true });
-    steps.push({ kind: "confidence", phase: 3, index });
+    steps.push({ kind: "explanation", phase: 3, index, confidence: true });
   }
 
   steps.push({ kind: "completion" });
@@ -119,11 +124,17 @@ export function consentCanContinue(consent: string, fullName: string): "ok" | "i
   return "ok";
 }
 
-export function isSession(value: string): value is Session {
-  return value === "Monday" || value === "Wednesday";
+export function explanationCanContinue(explanation: string, confidence: string | null): "ok" | "incomplete" {
+  if (!explanation.trim()) return "incomplete";
+  if (confidence !== null && !confidence) return "incomplete";
+  return "ok";
 }
 
-/** Monday is the no-AI condition. Wednesday is the ChatGPT condition. */
+export function isSession(value: string): value is Session {
+  return value === "Monday" || value === "Tuesday";
+}
+
+/** Monday is the no-AI condition. Tuesday is the ChatGPT condition. */
 export function sessionToGroup(session: Session): Group {
   return session === "Monday" ? "Control" : "Experimental";
 }
@@ -141,22 +152,26 @@ export function demographicsComplete(demographics: Demographics): boolean {
 
 export function phaseIInstructionParagraphs(count: number): string[] {
   return [
-    `You will be given ${count} ${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`,
-    "After each scenario, you will also be asked about your confidence in your decision.",
+    `You will be given ${count} life ${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`,
+    "After each scenario, you will explain your choice and report your confidence in your decision.",
   ];
 }
 
 export function phaseIIInstructionParagraphs(count: number, group: Group): string[] {
-  const lead = `You will be given ${count} more ${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`;
-  if (group === "Control") return [lead];
+  const life = group === "Control" ? "life " : "";
+  const lead = `You will be given ${count} more ${life}${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`;
+  const explain = "After each scenario, you will briefly explain your choice.";
+  if (group === "Control") return [lead, explain];
   return [
     lead,
+    explain,
     "For this phase, you are required to utilize ChatGPT to assist in your decision-making process. You may: ask AI what decision it would make, reason through your thought process, discuss strengths and weaknesses, ask follow up questions, or any other approaches you would like. Use one conversation thread for all scenarios, as you will be sending it to the researchers at the conclusion of the study.",
   ];
 }
 
 export function phaseIIIInstructionParagraphs(count: number, group: Group): string[] {
-  const lead = `You will be given ${count} last ${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will also be asked about your confidence in your decision.`;
+  const life = group === "Control" ? "life " : "";
+  const lead = `You will be given ${count} last ${life}${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will explain your choice and report your confidence in your decision.`;
   if (group === "Control") return [lead];
   return [lead, "No AI assistance is permitted for this phase."];
 }
@@ -174,9 +189,18 @@ export function completionParagraphs(group: Group, fullName: string): string[] {
   ];
 }
 
+export function buildDeclinedSubmission(fullName: string, timestamp: string): SheetPayload {
+  return {
+    declined: true,
+    headers: ["Timestamp", "Full Name"],
+    values: [timestamp, fullName.trim()],
+  };
+}
+
 export function buildSubmission(record: SessionRecord, timestamp: string): SheetPayload {
   // Group stays in this position and stores sessionToGroup(session).
   // The live sheet already has a response row, so Session is not a column.
+  // Explanation columns are appended after every existing column.
   const headers = [
     "Timestamp",
     "Full Name",
@@ -213,6 +237,21 @@ export function buildSubmission(record: SessionRecord, timestamp: string): Sheet
     const label = `Phase III Scenario ${index + 1}`;
     headers.push(`${label} Choice`, `${label} Confidence`, `${label} Seconds`);
     values.push(item.choice, item.confidence, item.seconds);
+  });
+
+  record.phase1.forEach((item, index) => {
+    headers.push(`Phase I Scenario ${index + 1} Explanation`);
+    values.push(item.explanation);
+  });
+
+  record.phase2.forEach((item, index) => {
+    headers.push(`Phase II Scenario ${index + 1} Explanation`);
+    values.push(item.explanation);
+  });
+
+  record.phase3.forEach((item, index) => {
+    headers.push(`Phase III Scenario ${index + 1} Explanation`);
+    values.push(item.explanation);
   });
 
   return { headers, values };

@@ -11,15 +11,18 @@ import {
   AI_PRIMARY_USE_OPTIONS,
   CONFIDENCE_OPTIONS,
   CONFIDENCE_QUESTION,
+  EXPLANATION_PROMPT,
   GENDER_OPTIONS,
   SESSION_OPTIONS,
   SESSION_QUESTION,
+  buildDeclinedSubmission,
   buildSteps,
   buildSubmission,
   completionParagraphs,
   completionSubject,
   consentCanContinue,
   demographicsComplete,
+  explanationCanContinue,
   isSession,
   phaseIInstructionParagraphs,
   phaseIIInstructionParagraphs,
@@ -29,6 +32,7 @@ import {
   type PhaseTimedAnswer,
   type Session,
   type SessionRecord,
+  type SheetPayload,
 } from "@/lib/study-flow";
 
 const HANDOFF_EMAIL = "susannaziesmer@southern.edu";
@@ -104,6 +108,7 @@ export function Questionnaire() {
   const [phase2, setPhase2] = useState<PhaseChoiceAnswer[]>([]);
   const [phase3, setPhase3] = useState<PhaseTimedAnswer[]>([]);
   const [selected, setSelected] = useState("");
+  const [explanation, setExplanation] = useState("");
   const [showError, setShowError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState("");
@@ -123,7 +128,7 @@ export function Questionnaire() {
     window.setTimeout(() => setToast(""), 5000);
   }
 
-  async function send(record: SessionRecord) {
+  async function sendPayload(payload: SheetPayload) {
     if (submitted.current) return;
     submitted.current = true;
     if (!AI_STUDY_SCRIPT_URL) {
@@ -136,7 +141,7 @@ export function Questionnaire() {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildSubmission(record, new Date().toISOString())),
+        body: JSON.stringify(payload),
       });
     } catch {
       showToast("There was a problem submitting. Your responses may not have been recorded.");
@@ -148,6 +153,7 @@ export function Questionnaire() {
   function goTo(nextIndex: number) {
     setShowError(false);
     setSelected("");
+    setExplanation("");
     setIndex(nextIndex);
     window.scrollTo(0, 0);
   }
@@ -160,6 +166,7 @@ export function Questionnaire() {
         return;
       }
       if (gate === "stop") {
+        void sendPayload(buildDeclinedSubmission(fullName, new Date().toISOString()));
         setStopped(true);
         window.scrollTo(0, 0);
         return;
@@ -190,30 +197,42 @@ export function Questionnaire() {
       return;
     }
 
-    if (!selected) {
-      setShowError(true);
-      return;
-    }
-
     if (step.kind === "decision") {
+      if (!selected) {
+        setShowError(true);
+        return;
+      }
       if (step.phase === 1) {
         const seconds = Math.round((performance.now() - t0.current) / 100) / 10;
         setPhase1((current) => {
           const next = [...current];
-          next[step.index] = { choice: selected, confidence: current[step.index]?.confidence ?? "", seconds };
+          next[step.index] = {
+            choice: selected,
+            confidence: current[step.index]?.confidence ?? "",
+            seconds,
+            explanation: current[step.index]?.explanation ?? "",
+          };
           return next;
         });
       } else if (step.phase === 2) {
         setPhase2((current) => {
           const next = [...current];
-          next[step.index] = { choice: selected };
+          next[step.index] = {
+            choice: selected,
+            explanation: current[step.index]?.explanation ?? "",
+          };
           return next;
         });
       } else {
         const seconds = Math.round((performance.now() - t0.current) / 100) / 10;
         setPhase3((current) => {
           const next = [...current];
-          next[step.index] = { choice: selected, confidence: current[step.index]?.confidence ?? "", seconds };
+          next[step.index] = {
+            choice: selected,
+            confidence: current[step.index]?.confidence ?? "",
+            seconds,
+            explanation: current[step.index]?.explanation ?? "",
+          };
           return next;
         });
       }
@@ -221,20 +240,31 @@ export function Questionnaire() {
       return;
     }
 
-    if (step.kind === "confidence") {
+    if (step.kind === "explanation") {
+      const confidenceValue = step.confidence ? selected : null;
+      if (explanationCanContinue(explanation, confidenceValue) !== "ok") {
+        setShowError(true);
+        return;
+      }
+      const text = explanation.trim();
       const nextPhase1 =
         step.phase === 1
           ? phase1.map((item, itemIndex) =>
-              itemIndex === step.index ? { ...item, confidence: selected } : item,
+              itemIndex === step.index ? { ...item, explanation: text, confidence: selected } : item,
             )
           : phase1;
+      const nextPhase2 =
+        step.phase === 2
+          ? phase2.map((item, itemIndex) => (itemIndex === step.index ? { ...item, explanation: text } : item))
+          : phase2;
       const nextPhase3 =
         step.phase === 3
           ? phase3.map((item, itemIndex) =>
-              itemIndex === step.index ? { ...item, confidence: selected } : item,
+              itemIndex === step.index ? { ...item, explanation: text, confidence: selected } : item,
             )
           : phase3;
       if (step.phase === 1) setPhase1(nextPhase1);
+      if (step.phase === 2) setPhase2(nextPhase2);
       if (step.phase === 3) setPhase3(nextPhase3);
 
       const nextIndex = index + 1;
@@ -248,10 +278,10 @@ export function Questionnaire() {
           aiDecisionFrequency,
           session,
           phase1: nextPhase1,
-          phase2,
+          phase2: nextPhase2,
           phase3: nextPhase3,
         };
-        void send(record);
+        void sendPayload(buildSubmission(record, new Date().toISOString()));
       }
       goTo(nextIndex);
     }
@@ -259,20 +289,35 @@ export function Questionnaire() {
 
   const progress = (index / (steps.length - 1)) * 100;
   const pageLabel = `Page ${index + 1} of ${steps.length}`;
+  const toastNode = (
+    <div className={`toast${toast ? " visible" : ""}`} role="status">
+      {toast}
+    </div>
+  );
+  const overlayNode = (
+    <div className={`overlay${submitting ? " visible" : ""}`}>
+      <div className="overlay-spinner" />
+      <div className="overlay-text">Submitting your responses...</div>
+    </div>
+  );
 
   if (stopped) {
     return (
-      <div className="wrapper">
-        <p className="home-link">
-          <a href="/">Susanna Ziesmer</a>
-        </p>
-        <h1 className="study-title">Effect of Repeated AI Usage on Decision Making Speed</h1>
-        <p className="study-meta">Research Study</p>
-        <h2 className="section-label">Study information</h2>
-        <div className="card" data-page="stopped">
-          <p>You selected No. The study stops here, and nothing was saved.</p>
+      <>
+        <div className="wrapper" data-page="stopped">
+          <p className="home-link">
+            <a href="/">Susanna Ziesmer</a>
+          </p>
+          <h1 className="study-title">Effect of Repeated AI Usage on Decision Making Speed</h1>
+          <p className="study-meta">Research Study</p>
+          <h2 className="section-label">Study information</h2>
+          <div className="card">
+            <p>You selected No. You cannot continue.</p>
+          </div>
         </div>
-      </div>
+        {overlayNode}
+        {toastNode}
+      </>
     );
   }
 
@@ -290,7 +335,7 @@ export function Questionnaire() {
         <div className="card">
           <RadioOptions
             name="consent"
-            legend="Please select below if you agree to participate in this study or not:"
+            legend="Please select below if you agree to participate in this study:"
             options={["Yes", "No"]}
             value={consent}
             onChange={(value) => {
@@ -364,7 +409,7 @@ export function Questionnaire() {
           <p>{scenario.text}</p>
           <RadioOptions
             name={`choice-${step.phase}-${step.index}`}
-            legend="Choose one option."
+            legend={scenario.question}
             options={[scenario.option1, scenario.option2]}
             value={selected}
             onChange={(value) => {
@@ -377,24 +422,42 @@ export function Questionnaire() {
         </div>
       </>
     );
-  } else if (step.kind === "confidence") {
-    pageName = `confidence-${step.phase}-${step.index}`;
+  } else if (step.kind === "explanation") {
+    pageName = `explanation-${step.phase}-${step.index}`;
+    const explanationId = `explanation-${step.phase}-${step.index}`;
     body = (
       <>
-        <h2 className="section-label">Confidence</h2>
+        <h2 className="section-label">Explanation</h2>
         <div className="card">
-          <RadioOptions
-            name={`confidence-${step.phase}-${step.index}`}
-            legend={CONFIDENCE_QUESTION}
-            options={CONFIDENCE_OPTIONS}
-            value={selected}
-            onChange={(value) => {
-              setSelected(value);
-              setShowError(false);
-            }}
-            invalid={showError && !selected}
-            layout="pills"
-          />
+          <div className={`field${showError && !explanation.trim() ? " has-error" : ""}`}>
+            <label className="field-label" htmlFor={explanationId}>
+              {EXPLANATION_PROMPT}
+            </label>
+            <textarea
+              id={explanationId}
+              rows={3}
+              value={explanation}
+              onChange={(event) => {
+                setExplanation(event.target.value);
+                setShowError(false);
+              }}
+            />
+            <div className="field-error">Please explain your decision.</div>
+          </div>
+          {step.confidence ? (
+            <RadioOptions
+              name={`confidence-${step.phase}-${step.index}`}
+              legend={CONFIDENCE_QUESTION}
+              options={CONFIDENCE_OPTIONS}
+              value={selected}
+              onChange={(value) => {
+                setSelected(value);
+                setShowError(false);
+              }}
+              invalid={showError && !selected}
+              layout="pills"
+            />
+          ) : null}
         </div>
       </>
     );
@@ -440,13 +503,8 @@ export function Questionnaire() {
           </div>
         ) : null}
       </div>
-      <div className={`overlay${submitting ? " visible" : ""}`}>
-        <div className="overlay-spinner" />
-        <div className="overlay-text">Submitting your responses...</div>
-      </div>
-      <div className={`toast${toast ? " visible" : ""}`} role="status">
-        {toast}
-      </div>
+      {overlayNode}
+      {toastNode}
     </>
   );
 }

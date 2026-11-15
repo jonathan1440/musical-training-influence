@@ -31,15 +31,15 @@ The static site is written to `out/`. `npm test` checks the questionnaire page o
 
 ### Walk the AI questionnaire
 
-1. On page 1, choose **No** and type a name, then Next. The study stops. Nothing is saved.
+1. On page 1, choose **No** without a name, then Next. The page stays. Type a full name, choose **No**, then Next. The study stops. The questionnaire sends only the timestamp and full name. After the Apps Script below is redeployed, that row is stored on a tab named **Declined consent**, not with the responses.
 2. Reload. Choose **Yes**, type a name, and continue.
-3. Answer every demographics question. The session question is **Monday** or **Wednesday**. The questionnaire does not assign it. Participants never see the words Control or Experimental. Monday is stored as Control: Phase II has no AI instruction, Phase III has no “no AI” line, and completion is the thank-you only. Wednesday is stored as Experimental: Phase II requires the ChatGPT thread, Phase III says no AI assistance is permitted, and completion includes the ChatGPT handoff.
-4. Phase I is a decision page, then a confidence page, repeated. Only the decision pages are timed.
-5. Phase II instructions differ by session. Wednesday adds the required ChatGPT thread. Phase II is decisions only: no confidence question, and no time recorded.
-6. Phase III instructions differ by session. Wednesday adds “No AI assistance is permitted for this phase.” Decision, then confidence, same count as Phase I. Only the decision pages are timed.
-7. The completion page differs by session. Wednesday asks the participant to share the ChatGPT thread with susannaziesmer@southern.edu, subject `AI Study - [their name]`.
+3. Answer every demographics question. The session question is **Monday** or **Tuesday**. The questionnaire does not assign it. Participants never see the words Control or Experimental. Monday is stored as Control: Phase II has no AI instruction, Phase III has no “no AI” line, and completion is the thank-you only. Tuesday is stored as Experimental: Phase II requires the ChatGPT thread, Phase III says no AI assistance is permitted, and completion includes the ChatGPT handoff.
+4. Phase I instructions say life scenarios, and that after each scenario the participant explains the choice and reports confidence. Each scenario is a timed decision page, then an untimed page with a required explanation and the confidence scale.
+5. Phase II instructions differ by session. Monday says more life scenarios and asks for a brief explanation, with no AI instruction. Tuesday says more scenarios, asks for a brief explanation, then requires one ChatGPT thread. Each scenario is an untimed decision page, then an untimed explanation page. Phase II has no confidence question and no time recording.
+6. Phase III instructions differ by session. Monday says last life scenarios, then explanation and confidence. Tuesday says last scenarios, then explanation and confidence, and adds “No AI assistance is permitted for this phase.” The scenario count matches Phase I. Decision pages are timed. Explanation and confidence pages are not.
+7. The completion page differs by session. Tuesday asks the participant to share the ChatGPT thread with susannaziesmer@southern.edu, subject `AI Study - [their name]`.
 
-There is no post-activity survey page. The consent form mentions one because that sentence is part of the study procedure. The page list does not include it.
+The consent form does not mention a post-activity survey. There is no separate survey page.
 
 ## Scenario counts and wording
 
@@ -49,32 +49,34 @@ Edit only [`lib/scenarios.ts`](lib/scenarios.ts).
 - `PHASE_II_COUNT` defaults to 10.
 - Phase III uses `PHASE_I_COUNT`.
 - Instruction pages use those same numbers.
-- Scenario text and both option labels are placeholders. Replace a draft in that file when the real wording is ready.
+- Scenario text, the question line, and both option labels are the study wording. Edit them in that file.
 
 ## AI study spreadsheet
 
-Use a **new** Google Sheet. Do not reuse the musical-training sheet.
+The live sheet already exists, with a tab named **AI Decision Study**. Do not create a second spreadsheet for this study, and do not reuse the musical-training sheet.
 
-1. Create a new Google Sheet.
-2. Extensions → Apps Script. Delete the sample code and paste [`google-apps-script-ai-study.js`](google-apps-script-ai-study.js).
-3. Deploy → New deployment → Web app. Execute as **Me**. Who has access: **Anyone**.
-4. Copy the web app URL (`https://script.google.com/macros/s/.../exec`).
-5. Put it in `NEXT_PUBLIC_AI_STUDY_SCRIPT_URL`. For local builds, use `.env.local` (gitignored). For GitHub Pages, add a repository secret with that same name. The workflow passes the secret into `npm run build`.
-6. Rebuild. The static export bakes the URL in at build time. Changing it later requires another build.
+1. Open that sheet. Extensions → Apps Script.
+2. Replace the project source with [`google-apps-script-ai-study.js`](google-apps-script-ai-study.js).
+3. Deploy a new version of the **existing** web app (Deploy → Manage deployments → Edit → Version → New version). Execute as **Me**. Who has access: **Anyone**.
+4. Keep the current web app URL if it does not change. If a new deployment issues a new URL, put it in `NEXT_PUBLIC_AI_STUDY_SCRIPT_URL` and rebuild. For local builds, use `.env.local` (gitignored). For GitHub Pages, use the repository secret with that same name. The workflow passes the secret into `npm run build`.
 
 Do not commit the URL.
 
-The script creates a tab named **AI Decision Study** and appends one row per completed session. Consent **No** never sends a request.
+Redeploy before the next session. Until that deployment is live, a declined name is not stored on the Declined consent tab, and explanation answers are not labeled on the header row. The script currently deployed will treat a declined post as an ordinary row.
 
-A row contains: timestamp, full name, age, gender, generative-AI frequency, primary use, use for decisions, group, each choice, each confidence rating, and seconds on each Phase I and Phase III decision page. Phase II columns are choices only. Confidence pages, instructions, Phase II, and completion are not timed.
+The script appends one completed session per row on **AI Decision Study**. A consent **No** posts `declined: true` and is written only to a tab named **Declined consent**, with Timestamp and Full Name. It is not added to the response rows.
 
-The Group column stays where it is and stores the mapped condition: Monday → Control, Wednesday → Experimental. The live sheet already has a response row, so a Session column was not added. Inserting one would shift Group away from the existing header.
+A response row keeps the existing columns in place: timestamp, full name, age, gender, generative-AI frequency, primary use, use for decisions, group, each choice, each confidence rating, and seconds on each Phase I and Phase III decision page. Phase II columns in that block are choices only. Explanation answers are new columns at the end of the row, in order: every Phase I Scenario N Explanation, then Phase II, then Phase III. The script appends those header cells on row 1 when they are missing. It does not rewrite existing header cells. Older response rows leave the new cells blank.
 
-If you change the scenario counts after real responses exist, use a new tab or spreadsheet. The header row is written once, from the first submission.
+The Group column stays where it is and stores the mapped condition: Monday → Control, Tuesday → Experimental. A Session column was not added. Inserting one would shift Group away from the existing header.
+
+Only Phase I and Phase III decision pages record seconds. Explanation pages, Phase II, instruction pages, and completion are not timed.
+
+If you change the scenario counts after real responses exist, use a new tab or spreadsheet. Existing header cells stay as they are.
 
 Editing the Apps Script does not update a deployment that is already live. Deploy a new version and, if the URL changes, rebuild the site with the new URL.
 
-The fetch uses `no-cors`, same as the music study, because Apps Script does not send CORS headers. The browser cannot read the response. A failed request shows a toast on the completion page.
+The fetch uses `no-cors`, same as the music study, because Apps Script does not send CORS headers. The browser cannot read the response. A failed request shows a toast on the completion page, and on the page shown after a declined consent.
 
 ## Musical-training spreadsheet
 

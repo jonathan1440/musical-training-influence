@@ -29,8 +29,7 @@ export function ConsentCopy() {
       <p>If you agree to participate:</p>
       <ul>
         <li>You will attend an in-person session,</li>
-        <li>complete decision-making tasks either with or without the assistance of AI,</li>
-        <li>and additionally complete a post-activity survey about your experience.</li>
+        <li>and complete decision-making tasks either with or without AI.</li>
       </ul>
 
       <h3>Eligibility</h3>
