@@ -283,7 +283,8 @@ h3.section-label {
   margin-bottom: 14px;
 }
 
-input[type="text"] {
+input[type="text"],
+textarea {
   width: 100%;
   padding: 10px 14px;
   font-family: inherit;
@@ -294,7 +295,15 @@ input[type="text"] {
   border-radius: 6px;
 }
 
-input[type="text"]:focus {
+textarea {
+  display: block;
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+input[type="text"]:focus,
+textarea:focus {
   outline: none;
   border-color: var(--terracotta);
 }
@@ -394,7 +403,8 @@ input[type="text"]:focus {
   margin-top: 28px;
 }
 
-.field.has-error input[type="text"] {
+.field.has-error input[type="text"],
+.field.has-error textarea {
   border-color: var(--error-red);
   background: var(--error-bg);
 }
