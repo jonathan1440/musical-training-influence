@@ -21,14 +21,21 @@ import {
   demographicsComplete,
   explanationCanContinue,
   isSession,
+  phaseHeading,
   phaseIInstructionParagraphs,
   phaseIIInstructionParagraphs,
   phaseIIIInstructionParagraphs,
+  scenarioHeading,
   sessionToGroup,
+  type InstructionBlock,
   type SessionRecord,
 } from "./study-flow.ts";
 
 const APOSTROPHE = "\u2019";
+
+function blockLines(blocks: InstructionBlock[]): string[] {
+  return blocks.flatMap((block) => (block.type === "bullets" ? block.items : [block.text]));
+}
 
 test("default counts follow the 46-page pattern", () => {
   const steps = buildSteps(5, 10);
@@ -167,31 +174,71 @@ test("Monday maps to Control and Tuesday maps to Experimental", () => {
   assert.equal(sessionToGroup("Tuesday"), "Experimental");
 
   assert.deepEqual(phaseIInstructionParagraphs(5), [
-    "You will be given 5 life scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
-    "After each scenario, you will explain your choice and report your confidence in your decision.",
+    {
+      type: "paragraph",
+      text: "You will be given 5 life scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
+    },
+    {
+      type: "paragraph",
+      text: "After each scenario, you will explain your choice and report your confidence in your decision.",
+    },
   ]);
 
   assert.deepEqual(phaseIIInstructionParagraphs(10, sessionToGroup("Monday")), [
-    "You will be given 10 more life scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
-    "After each scenario, you will briefly explain your choice.",
+    {
+      type: "paragraph",
+      text: "You will be given 10 more life scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
+    },
+    { type: "paragraph", text: "After each scenario, you will briefly explain your choice." },
   ]);
   const tuesdayTwo = phaseIIInstructionParagraphs(10, sessionToGroup("Tuesday"));
   assert.deepEqual(tuesdayTwo, [
-    "You will be given 10 more scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
-    "After each scenario, you will briefly explain your choice.",
-    "For this phase, you are required to utilize ChatGPT to assist in your decision-making process. You may: ask AI what decision it would make, reason through your thought process, discuss strengths and weaknesses, ask follow up questions, or any other approaches you would like. Use one conversation thread for all scenarios, as you will be sending it to the researchers at the conclusion of the study.",
+    {
+      type: "paragraph",
+      text: "You will be given 10 more scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
+    },
+    { type: "paragraph", text: "After each scenario, you will briefly explain your choice." },
+    {
+      type: "emphasis",
+      text: "For this phase, you are required to utilize ChatGPT to assist in your decision-making process.",
+    },
+    { type: "paragraph", text: "You may:" },
+    {
+      type: "bullets",
+      items: [
+        "ask AI what decision it would make",
+        "reason through your thought process",
+        "discuss strengths and weaknesses",
+        "ask follow up questions",
+        "or any other approaches you would like",
+      ],
+    },
+    {
+      type: "emphasis",
+      text: "Use one conversation thread for all scenarios, as you will be sending it to the researchers at the conclusion of the study.",
+    },
   ]);
-  assert.equal(tuesdayTwo.join(" ").includes("life"), false);
+  assert.equal(blockLines(tuesdayTwo).join(" ").includes("life"), false);
+  assert.equal(
+    phaseIIInstructionParagraphs(10, "Control").every((block) => block.type === "paragraph"),
+    true,
+  );
 
   assert.deepEqual(phaseIIIInstructionParagraphs(5, sessionToGroup("Monday")), [
-    "You will be given 5 last life scenarios where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will explain your choice and report your confidence in your decision.",
+    {
+      type: "paragraph",
+      text: "You will be given 5 last life scenarios where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will explain your choice and report your confidence in your decision.",
+    },
   ]);
   const tuesdayThree = phaseIIIInstructionParagraphs(5, sessionToGroup("Tuesday"));
   assert.deepEqual(tuesdayThree, [
-    "You will be given 5 last scenarios where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will explain your choice and report your confidence in your decision.",
-    "No AI assistance is permitted for this phase.",
+    {
+      type: "paragraph",
+      text: "You will be given 5 last scenarios where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will explain your choice and report your confidence in your decision.",
+    },
+    { type: "paragraph", text: "No AI assistance is permitted for this phase." },
   ]);
-  assert.equal(tuesdayThree.join(" ").includes("life"), false);
+  assert.equal(blockLines(tuesdayThree).join(" ").includes("life"), false);
 
   const mondayEnd = completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace").join(" ");
   const tuesdayEnd = completionParagraphs(sessionToGroup("Tuesday"), "Ada Lovelace").join(" ");
@@ -206,11 +253,11 @@ test("participant-facing copy does not say Control, Experimental, or Wednesday",
     ...SESSION_OPTIONS,
     CONFIDENCE_QUESTION,
     EXPLANATION_PROMPT,
-    ...phaseIInstructionParagraphs(5),
-    ...phaseIIInstructionParagraphs(10, sessionToGroup("Monday")),
-    ...phaseIIInstructionParagraphs(10, sessionToGroup("Tuesday")),
-    ...phaseIIIInstructionParagraphs(5, sessionToGroup("Monday")),
-    ...phaseIIIInstructionParagraphs(5, sessionToGroup("Tuesday")),
+    ...blockLines(phaseIInstructionParagraphs(5)),
+    ...blockLines(phaseIIInstructionParagraphs(10, sessionToGroup("Monday"))),
+    ...blockLines(phaseIIInstructionParagraphs(10, sessionToGroup("Tuesday"))),
+    ...blockLines(phaseIIIInstructionParagraphs(5, sessionToGroup("Monday"))),
+    ...blockLines(phaseIIIInstructionParagraphs(5, sessionToGroup("Tuesday"))),
     ...completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace"),
     ...completionParagraphs(sessionToGroup("Tuesday"), "Ada Lovelace"),
   ];
@@ -243,6 +290,19 @@ test("participant-facing copy does not say Control, Experimental, or Wednesday",
   );
   assert.match(questionnaire, /Please select below if you agree to participate in this study:/);
   assert.doesNotMatch(questionnaire, /or not:/);
+  assert.doesNotMatch(questionnaire, /Susanna Ziesmer/);
+  assert.doesNotMatch(questionnaire, /home-link/);
+  assert.match(questionnaire, /showTitle=\{step\.kind === "consent"\}/);
+  assert.match(questionnaire, /<h1 className="study-title">/);
+  assert.equal(phaseHeading(1), "Phase I");
+  assert.equal(phaseHeading(2), "Phase II");
+  assert.equal(phaseHeading(3), "Phase III");
+  assert.equal(scenarioHeading(1, 2), "Phase I scenario 3");
+  assert.equal(scenarioHeading(2, 6), "Phase II scenario 7");
+  assert.doesNotMatch(phaseHeading(1), /instructions/i);
+  assert.equal((questionnaire.match(/scenarioHeading\(step\.phase, step\.index\)/g) ?? []).length, 2);
+  assert.match(questionnaire, /phaseHeading\(step\.phase\)/);
+  assert.doesNotMatch(questionnaire, /instructions`/);
 });
 
 test("explanation columns are appended after the existing row and a declined row is separate", () => {

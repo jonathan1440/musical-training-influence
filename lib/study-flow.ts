@@ -43,6 +43,11 @@ export const EXPLANATION_PROMPT = "Briefly explain (in a sentence or less) why y
 
 export const SESSION_QUESTION = "Which session are you attending?";
 
+export type InstructionBlock =
+  | { type: "paragraph"; text: string }
+  | { type: "emphasis"; text: string }
+  | { type: "bullets"; items: string[] };
+
 const HANDOFF_EMAIL = "susannaziesmer@southern.edu";
 
 export type Demographics = {
@@ -87,6 +92,18 @@ export type SheetPayload = {
 
 function scenarioWord(count: number): string {
   return count === 1 ? "scenario" : "scenarios";
+}
+
+function paragraphs(texts: string[]): InstructionBlock[] {
+  return texts.map((text) => ({ type: "paragraph", text }));
+}
+
+export function phaseHeading(phase: 1 | 2 | 3): string {
+  return `Phase ${phase === 1 ? "I" : phase === 2 ? "II" : "III"}`;
+}
+
+export function scenarioHeading(phase: 1 | 2 | 3, index: number): string {
+  return `${phaseHeading(phase)} scenario ${index + 1}`;
 }
 
 export function buildSteps(phaseICount: number, phaseIICount: number): Step[] {
@@ -150,30 +167,47 @@ export function demographicsComplete(demographics: Demographics): boolean {
   );
 }
 
-export function phaseIInstructionParagraphs(count: number): string[] {
-  return [
+export function phaseIInstructionParagraphs(count: number): InstructionBlock[] {
+  return paragraphs([
     `You will be given ${count} life ${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`,
     "After each scenario, you will explain your choice and report your confidence in your decision.",
-  ];
+  ]);
 }
 
-export function phaseIIInstructionParagraphs(count: number, group: Group): string[] {
+export function phaseIIInstructionParagraphs(count: number, group: Group): InstructionBlock[] {
   const life = group === "Control" ? "life " : "";
   const lead = `You will be given ${count} more ${life}${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`;
   const explain = "After each scenario, you will briefly explain your choice.";
-  if (group === "Control") return [lead, explain];
+  if (group === "Control") return paragraphs([lead, explain]);
   return [
-    lead,
-    explain,
-    "For this phase, you are required to utilize ChatGPT to assist in your decision-making process. You may: ask AI what decision it would make, reason through your thought process, discuss strengths and weaknesses, ask follow up questions, or any other approaches you would like. Use one conversation thread for all scenarios, as you will be sending it to the researchers at the conclusion of the study.",
+    ...paragraphs([lead, explain]),
+    {
+      type: "emphasis",
+      text: "For this phase, you are required to utilize ChatGPT to assist in your decision-making process.",
+    },
+    { type: "paragraph", text: "You may:" },
+    {
+      type: "bullets",
+      items: [
+        "ask AI what decision it would make",
+        "reason through your thought process",
+        "discuss strengths and weaknesses",
+        "ask follow up questions",
+        "or any other approaches you would like",
+      ],
+    },
+    {
+      type: "emphasis",
+      text: "Use one conversation thread for all scenarios, as you will be sending it to the researchers at the conclusion of the study.",
+    },
   ];
 }
 
-export function phaseIIIInstructionParagraphs(count: number, group: Group): string[] {
+export function phaseIIIInstructionParagraphs(count: number, group: Group): InstructionBlock[] {
   const life = group === "Control" ? "life " : "";
   const lead = `You will be given ${count} last ${life}${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented. After each scenario, you will explain your choice and report your confidence in your decision.`;
-  if (group === "Control") return [lead];
-  return [lead, "No AI assistance is permitted for this phase."];
+  if (group === "Control") return paragraphs([lead]);
+  return paragraphs([lead, "No AI assistance is permitted for this phase."]);
 }
 
 export function completionSubject(fullName: string): string {

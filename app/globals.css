@@ -166,6 +166,14 @@ h3.section-label {
   margin-bottom: 0;
 }
 
+.card strong {
+  font-weight: 600;
+}
+
+.card ul:last-child {
+  margin-bottom: 0;
+}
+
 .card h3 {
   font-family: var(--font-source-sans), "Source Sans 3", sans-serif;
   font-size: 0.95rem;
