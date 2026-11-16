@@ -240,11 +240,34 @@ test("Monday maps to Control and Tuesday maps to Experimental", () => {
   ]);
   assert.equal(blockLines(tuesdayThree).join(" ").includes("life"), false);
 
-  const mondayEnd = completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace").join(" ");
-  const tuesdayEnd = completionParagraphs(sessionToGroup("Tuesday"), "Ada Lovelace").join(" ");
-  assert.equal(mondayEnd, "You have completed the study! Thank you for participating!");
-  assert.match(tuesdayEnd, /susannaziesmer@southern.edu/);
-  assert.match(tuesdayEnd, /AI Study - Ada Lovelace/);
+  const mondayEnd = completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace");
+  const tuesdayEnd = completionParagraphs(sessionToGroup("Tuesday"), "Ada Lovelace");
+  assert.deepEqual(mondayEnd, [
+    { type: "paragraph", text: "You have completed the study! Thank you for participating!" },
+  ]);
+  assert.equal(
+    mondayEnd.some((block) => block.type === "bullets" || block.type === "emphasis"),
+    false,
+  );
+  assert.deepEqual(tuesdayEnd, [
+    { type: "paragraph", text: "You have completed the study! Thank you for participating!" },
+    {
+      type: "emphasis",
+      text: "Before leaving, send your ChatGPT conversation thread to the researchers.",
+    },
+    {
+      type: "bullets",
+      items: [
+        "Click \u201cShare\u201d at the top right of your conversation thread.",
+        "Paste the link into an email addressed to susannaziesmer@southern.edu.",
+        "Name your email subject: AI Study - Ada Lovelace.",
+      ],
+    },
+    {
+      type: "paragraph",
+      text: "If you have any questions about this process, please let the researchers know!",
+    },
+  ]);
 });
 
 test("participant-facing copy does not say Control, Experimental, or Wednesday", () => {
@@ -258,8 +281,8 @@ test("participant-facing copy does not say Control, Experimental, or Wednesday",
     ...blockLines(phaseIIInstructionParagraphs(10, sessionToGroup("Tuesday"))),
     ...blockLines(phaseIIIInstructionParagraphs(5, sessionToGroup("Monday"))),
     ...blockLines(phaseIIIInstructionParagraphs(5, sessionToGroup("Tuesday"))),
-    ...completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace"),
-    ...completionParagraphs(sessionToGroup("Tuesday"), "Ada Lovelace"),
+    ...blockLines(completionParagraphs(sessionToGroup("Monday"), "Ada Lovelace")),
+    ...blockLines(completionParagraphs(sessionToGroup("Tuesday"), "Ada Lovelace")),
   ];
   for (const text of facing) {
     assert.doesNotMatch(text, /\bControl\b/);
@@ -303,6 +326,7 @@ test("participant-facing copy does not say Control, Experimental, or Wednesday",
   assert.equal((questionnaire.match(/scenarioHeading\(step\.phase, step\.index\)/g) ?? []).length, 2);
   assert.match(questionnaire, /phaseHeading\(step\.phase\)/);
   assert.doesNotMatch(questionnaire, /instructions`/);
+  assert.equal((questionnaire.match(/<InstructionBody/g) ?? []).length, 2);
 });
 
 test("explanation columns are appended after the existing row and a declined row is separate", () => {

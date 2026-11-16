@@ -214,12 +214,24 @@ export function completionSubject(fullName: string): string {
   return `AI Study - ${fullName.trim()}`;
 }
 
-export function completionParagraphs(group: Group, fullName: string): string[] {
-  if (group === "Control") {
-    return ["You have completed the study! Thank you for participating!"];
-  }
+export function completionParagraphs(group: Group, fullName: string): InstructionBlock[] {
+  const thanks = "You have completed the study! Thank you for participating!";
+  if (group === "Control") return paragraphs([thanks]);
   return [
-    `You have completed the study! Thank you for participating! Before leaving, send your ChatGPT conversation thread to the researchers. Click “Share” at the top right of your conversation thread. Paste the link into an email addressed to ${HANDOFF_EMAIL}. Name your email subject: ${completionSubject(fullName)}. If you have any questions about this process, please let the researchers know!`,
+    ...paragraphs([thanks]),
+    {
+      type: "emphasis",
+      text: "Before leaving, send your ChatGPT conversation thread to the researchers.",
+    },
+    {
+      type: "bullets",
+      items: [
+        "Click “Share” at the top right of your conversation thread.",
+        `Paste the link into an email addressed to ${HANDOFF_EMAIL}.`,
+        `Name your email subject: ${completionSubject(fullName)}.`,
+      ],
+    },
+    ...paragraphs(["If you have any questions about this process, please let the researchers know!"]),
   ];
 }
 

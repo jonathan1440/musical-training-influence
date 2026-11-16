@@ -85,7 +85,13 @@ function RadioOptions({
   );
 }
 
-function InstructionBody({ blocks }: { blocks: InstructionBlock[] }) {
+function InstructionBody({
+  blocks,
+  renderText = (text) => text,
+}: {
+  blocks: InstructionBlock[];
+  renderText?: (text: string) => ReactNode;
+}) {
   return (
     <div className="card">
       {blocks.map((block) => {
@@ -93,7 +99,7 @@ function InstructionBody({ blocks }: { blocks: InstructionBlock[] }) {
           return (
             <ul key={block.items.join("|")}>
               {block.items.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item}>{renderText(item)}</li>
               ))}
             </ul>
           );
@@ -101,13 +107,26 @@ function InstructionBody({ blocks }: { blocks: InstructionBlock[] }) {
         if (block.type === "emphasis") {
           return (
             <p key={block.text}>
-              <strong>{block.text}</strong>
+              <strong>{renderText(block.text)}</strong>
             </p>
           );
         }
-        return <p key={block.text}>{block.text}</p>;
+        return <p key={block.text}>{renderText(block.text)}</p>;
       })}
     </div>
+  );
+}
+
+function handoffText(text: string, fullName: string): ReactNode {
+  const parts = text.split(HANDOFF_EMAIL);
+  if (parts.length === 1) return text;
+  const href = `mailto:${HANDOFF_EMAIL}?subject=${encodeURIComponent(completionSubject(fullName))}`;
+  return (
+    <>
+      {parts[0]}
+      <a href={href}>{HANDOFF_EMAIL}</a>
+      {parts[1]}
+    </>
   );
 }
 
@@ -491,15 +510,11 @@ export function Questionnaire() {
     pageName = "completion";
     const branchGroup = isSession(session) ? sessionToGroup(session) : null;
     branch = isSession(session) ? session : "";
-    const paragraphs = branchGroup ? completionParagraphs(branchGroup, fullName) : [];
+    const blocks = branchGroup ? completionParagraphs(branchGroup, fullName) : [];
     body = (
       <>
         <h2 className="section-label">Study completion</h2>
-        <div className="card">
-          {paragraphs.map((paragraph) => (
-            <CompletionParagraph key={paragraph} text={paragraph} fullName={fullName} />
-          ))}
-        </div>
+        <InstructionBody blocks={blocks} renderText={(text) => handoffText(text, fullName)} />
       </>
     );
   }
@@ -534,15 +549,3 @@ export function Questionnaire() {
   );
 }
 
-function CompletionParagraph({ text, fullName }: { text: string; fullName: string }) {
-  const parts = text.split(HANDOFF_EMAIL);
-  if (parts.length === 1) return <p>{text}</p>;
-  const href = `mailto:${HANDOFF_EMAIL}?subject=${encodeURIComponent(completionSubject(fullName))}`;
-  return (
-    <p>
-      {parts[0]}
-      <a href={href}>{HANDOFF_EMAIL}</a>
-      {parts[1]}
-    </p>
-  );
-}
