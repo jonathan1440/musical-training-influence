@@ -8,9 +8,10 @@
  * NEXT_PUBLIC_AI_STUDY_SCRIPT_URL. Do not commit that URL.
  *
  * Completed sessions append to a tab named "AI Decision Study".
- * Explanation columns arrive at the end of the payload. appendMissingHeaders
- * writes those new labels on row 1 only.
- * Do not rewrite existing header cells.
+ * Explanation columns arrive at the end of the existing columns.
+ * Phase II confidence columns arrive after those explanation columns.
+ * appendMissingHeaders writes those new labels on row 1 only.
+ * Do not rewrite existing header cells. Do not insert or shift columns.
  *
  * A declined consent is posted with declined: true. writeDeclinedConsent
  * stores it on a tab named "Declined consent" with only Timestamp and Full Name.

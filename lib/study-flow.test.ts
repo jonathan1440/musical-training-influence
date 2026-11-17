@@ -17,6 +17,7 @@ import {
   buildSteps,
   buildSubmission,
   completionParagraphs,
+  confidenceCanContinue,
   consentCanContinue,
   demographicsComplete,
   explanationCanContinue,
@@ -58,9 +59,46 @@ test("default counts follow the 46-page pattern", () => {
     steps.some((step) => step.kind === "confidence"),
     false,
   );
+  assert.deepEqual(buildSteps(5, 10, "Control"), steps);
 });
 
-test("phase III count matches phase I, and phase II has no confidence or timing", () => {
+test("Tuesday phase II replaces each explanation page with an untimed confidence page", () => {
+  const steps = buildSteps(5, 10, "Experimental");
+  assert.equal(steps.length, 46);
+  assert.deepEqual(steps[14], { kind: "decision", phase: 2, index: 0, timed: false });
+  assert.deepEqual(steps[15], { kind: "confidence", phase: 2, index: 0 });
+  assert.deepEqual(steps[32], { kind: "decision", phase: 2, index: 9, timed: false });
+  assert.deepEqual(steps[33], { kind: "confidence", phase: 2, index: 9 });
+  assert.deepEqual(steps[34], { kind: "instructions", phase: 3 });
+  assert.equal(steps.filter((step) => step.kind === "confidence").length, 10);
+  assert.equal(
+    steps.some((step) => step.kind === "explanation" && step.phase === 2),
+    false,
+  );
+  assert.equal(
+    steps.filter((step) => step.kind === "confidence").every((step) => !("timed" in step)),
+    true,
+  );
+  assert.equal(confidenceCanContinue(""), "incomplete");
+  assert.equal(confidenceCanContinue("Quite a bit"), "ok");
+
+  const control = buildSteps(5, 10, "Control");
+  steps.forEach((step, index) => {
+    const other = control[index];
+    if (step.kind === "confidence") {
+      assert.equal(other.kind, "explanation");
+      if (other.kind === "explanation") {
+        assert.equal(other.phase, 2);
+        assert.equal(other.confidence, false);
+        assert.equal(other.index, step.index);
+      }
+      return;
+    }
+    assert.deepEqual(step, other);
+  });
+});
+
+test("phase III count matches phase I, and control phase II has no confidence or timing", () => {
   const steps = buildSteps(2, 3);
   assert.equal(steps.length, 20);
   const decisions = steps.filter((step) => step.kind === "decision");
@@ -145,7 +183,14 @@ test("an explanation is required, and confidence is required only when that page
     "utf8",
   );
   assert.match(questionnaire, /explanationCanContinue/);
+  assert.match(questionnaire, /confidenceCanContinue/);
   assert.match(questionnaire, /EXPLANATION_PROMPT/);
+  const confidenceAt = questionnaire.lastIndexOf('step.kind === "confidence"');
+  assert.notEqual(confidenceAt, -1);
+  const confidenceBranch = questionnaire.slice(confidenceAt, questionnaire.indexOf("} else {", confidenceAt));
+  assert.match(confidenceBranch, /CONFIDENCE_QUESTION/);
+  assert.doesNotMatch(confidenceBranch, /EXPLANATION_PROMPT/);
+  assert.doesNotMatch(confidenceBranch, /textarea/);
 });
 
 test("demographics require every answer, including Monday or Tuesday", () => {
@@ -197,7 +242,10 @@ test("Monday maps to Control and Tuesday maps to Experimental", () => {
       type: "paragraph",
       text: "You will be given 10 more scenarios where you will have to decide between two options. Please make your best judgment based on the information presented.",
     },
-    { type: "paragraph", text: "After each scenario, you will briefly explain your choice." },
+    {
+      type: "paragraph",
+      text: "After each scenario, you will be asked to report your confidence in your decision.",
+    },
     {
       type: "emphasis",
       text: "For this phase, you are required to utilize ChatGPT to assist in your decision-making process.",
@@ -219,6 +267,13 @@ test("Monday maps to Control and Tuesday maps to Experimental", () => {
     },
   ]);
   assert.equal(blockLines(tuesdayTwo).join(" ").includes("life"), false);
+  assert.equal(blockLines(tuesdayTwo).join(" ").includes("explain"), false);
+  assert.equal(
+    blockLines(tuesdayTwo).includes(
+      "After each scenario, you will be asked to report your confidence in your decision.",
+    ),
+    true,
+  );
   assert.equal(
     phaseIIInstructionParagraphs(10, "Control").every((block) => block.type === "paragraph"),
     true,
@@ -323,7 +378,7 @@ test("participant-facing copy does not say Control, Experimental, or Wednesday",
   assert.equal(scenarioHeading(1, 2), "Phase I scenario 3");
   assert.equal(scenarioHeading(2, 6), "Phase II scenario 7");
   assert.doesNotMatch(phaseHeading(1), /instructions/i);
-  assert.equal((questionnaire.match(/scenarioHeading\(step\.phase, step\.index\)/g) ?? []).length, 2);
+  assert.equal((questionnaire.match(/scenarioHeading\(step\.phase, step\.index\)/g) ?? []).length, 3);
   assert.match(questionnaire, /phaseHeading\(step\.phase\)/);
   assert.doesNotMatch(questionnaire, /instructions`/);
   assert.equal((questionnaire.match(/<InstructionBody/g) ?? []).length, 2);
@@ -347,8 +402,8 @@ test("explanation columns are appended after the existing row and a declined row
       },
     ],
     phase2: [
-      { choice: "Bank A", explanation: "No monthly fee." },
-      { choice: "Dog B", explanation: "Calmer temperament." },
+      { choice: "Bank A", explanation: "No monthly fee.", confidence: "" },
+      { choice: "Dog B", explanation: "Calmer temperament.", confidence: "" },
     ],
     phase3: [
       {
@@ -382,6 +437,8 @@ test("explanation columns are appended after the existing row and a declined row
     "Phase II Scenario 1 Explanation",
     "Phase II Scenario 2 Explanation",
     "Phase III Scenario 1 Explanation",
+    "Phase II Scenario 1 Confidence",
+    "Phase II Scenario 2 Confidence",
   ]);
   assert.equal(values[headers.indexOf("Phase I Scenario 1 Seconds")], 4.2);
   assert.equal(values[headers.indexOf("Phase III Scenario 1 Seconds")], 3.1);
@@ -393,15 +450,40 @@ test("explanation columns are appended after the existing row and a declined row
   assert.equal(headers.includes("Session"), false);
   assert.equal(values[headers.indexOf("Group")], "Control");
   assert.equal(headers.some((header) => header.startsWith("Phase II ") && header.includes("Seconds")), false);
+  const explanationStart = headers.indexOf("Phase I Scenario 1 Explanation");
+  const confidenceStart = headers.indexOf("Phase II Scenario 1 Confidence");
+  assert.equal(confidenceStart, headers.length - record.phase2.length);
+  assert.ok(confidenceStart > headers.indexOf("Phase III Scenario 1 Explanation"));
   assert.equal(
-    headers.some((header) => header.startsWith("Phase II ") && header.includes("Confidence")),
+    headers
+      .slice(0, explanationStart)
+      .some((header) => header.startsWith("Phase II ") && header.includes("Confidence")),
     false,
   );
+  assert.equal(values[headers.indexOf("Phase II Scenario 1 Confidence")], "");
+  assert.equal(values[headers.indexOf("Phase II Scenario 2 Confidence")], "");
 
-  const tuesday = buildSubmission({ ...record, session: "Tuesday" }, "2026-11-06T00:00:00.000Z");
+  const tuesday = buildSubmission(
+    {
+      ...record,
+      session: "Tuesday",
+      phase2: [
+        { choice: "Bank A", explanation: "", confidence: "Quite a bit" },
+        { choice: "Dog B", explanation: "", confidence: "Slightly" },
+      ],
+    },
+    "2026-11-06T00:00:00.000Z",
+  );
   assert.equal(tuesday.headers.indexOf("Group"), 7);
   assert.equal(tuesday.values[tuesday.headers.indexOf("Group")], "Experimental");
-  assert.deepEqual(tuesday.headers.slice(0, 8), headers.slice(0, 8));
+  assert.deepEqual(tuesday.headers, headers);
+  assert.deepEqual(tuesday.headers.slice(0, confidenceStart), headers.slice(0, confidenceStart));
+  assert.equal(tuesday.values[tuesday.headers.indexOf("Phase II Scenario 1 Choice")], "Bank A");
+  assert.equal(tuesday.values[tuesday.headers.indexOf("Phase II Scenario 1 Explanation")], "");
+  assert.equal(tuesday.values[tuesday.headers.indexOf("Phase II Scenario 2 Explanation")], "");
+  assert.equal(tuesday.values[tuesday.headers.indexOf("Phase II Scenario 1 Confidence")], "Quite a bit");
+  assert.equal(tuesday.values[tuesday.headers.indexOf("Phase II Scenario 2 Confidence")], "Slightly");
+  assert.equal(tuesday.values[tuesday.headers.indexOf("Phase I Scenario 1 Explanation")], "The full ride mattered.");
 });
 
 test("the Apps Script writes declined names to their own tab and does not rewrite headers", () => {
@@ -411,7 +493,9 @@ test("the Apps Script writes declined names to their own tab and does not rewrit
   assert.match(script, /values\[0\]/);
   assert.match(script, /values\[1\]/);
   assert.match(script, /appendMissingHeaders/);
+  assert.match(script, /Phase II confidence columns arrive after those explanation columns/);
   assert.match(script, /Do not rewrite existing header cells/);
+  assert.match(script, /Do not insert or shift columns/);
   assert.doesNotMatch(script, /Consent "No" is never posted/);
   const declinedAt = script.indexOf("function writeDeclinedConsent");
   assert.notEqual(declinedAt, -1);
