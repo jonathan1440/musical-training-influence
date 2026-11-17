@@ -20,6 +20,7 @@ import {
   buildSubmission,
   completionParagraphs,
   completionSubject,
+  confidenceCanContinue,
   consentCanContinue,
   demographicsComplete,
   explanationCanContinue,
@@ -142,7 +143,6 @@ function StudyChrome({ showTitle, pageLabel }: { showTitle: boolean; pageLabel: 
 }
 
 export function Questionnaire() {
-  const steps = useMemo(() => buildSteps(PHASE_I_COUNT, PHASE_II_COUNT), []);
   const [index, setIndex] = useState(0);
   const [stopped, setStopped] = useState(false);
   const [consent, setConsent] = useState("");
@@ -164,6 +164,10 @@ export function Questionnaire() {
   const submitted = useRef(false);
   const renderedIndex = useRef(-1);
   const t0 = useRef(0);
+  const steps = useMemo(
+    () => buildSteps(PHASE_I_COUNT, PHASE_II_COUNT, isSession(session) ? sessionToGroup(session) : undefined),
+    [session],
+  );
 
   const step = steps[index];
   const timed = step.kind === "decision" && step.timed;
@@ -269,6 +273,7 @@ export function Questionnaire() {
           next[step.index] = {
             choice: selected,
             explanation: current[step.index]?.explanation ?? "",
+            confidence: current[step.index]?.confidence ?? "",
           };
           return next;
         });
@@ -329,6 +334,35 @@ export function Questionnaire() {
           phase1: nextPhase1,
           phase2: nextPhase2,
           phase3: nextPhase3,
+        };
+        void sendPayload(buildSubmission(record, new Date().toISOString()));
+      }
+      goTo(nextIndex);
+      return;
+    }
+
+    if (step.kind === "confidence") {
+      if (confidenceCanContinue(selected) !== "ok") {
+        setShowError(true);
+        return;
+      }
+      const nextPhase2 = phase2.map((item, itemIndex) =>
+        itemIndex === step.index ? { ...item, confidence: selected } : item,
+      );
+      setPhase2(nextPhase2);
+      const nextIndex = index + 1;
+      if (steps[nextIndex]?.kind === "completion" && isSession(session)) {
+        const record: SessionRecord = {
+          fullName: fullName.trim(),
+          age,
+          gender,
+          aiFrequency,
+          aiPrimaryUse,
+          aiDecisionFrequency,
+          session,
+          phase1,
+          phase2: nextPhase2,
+          phase3,
         };
         void sendPayload(buildSubmission(record, new Date().toISOString()));
       }
@@ -503,6 +537,27 @@ export function Questionnaire() {
               layout="pills"
             />
           ) : null}
+        </div>
+      </>
+    );
+  } else if (step.kind === "confidence") {
+    pageName = `confidence-${step.phase}-${step.index}`;
+    body = (
+      <>
+        <p className="scenario-kicker">{scenarioHeading(step.phase, step.index)}</p>
+        <div className="card">
+          <RadioOptions
+            name={`confidence-${step.phase}-${step.index}`}
+            legend={CONFIDENCE_QUESTION}
+            options={CONFIDENCE_OPTIONS}
+            value={selected}
+            onChange={(value) => {
+              setSelected(value);
+              setShowError(false);
+            }}
+            invalid={showError && !selected}
+            layout="pills"
+          />
         </div>
       </>
     );

@@ -7,6 +7,7 @@ export type Step =
   | { kind: "instructions"; phase: 1 | 2 | 3 }
   | { kind: "decision"; phase: 1 | 2 | 3; index: number; timed: boolean }
   | { kind: "explanation"; phase: 1 | 2 | 3; index: number; confidence: boolean }
+  | { kind: "confidence"; phase: 2; index: number }
   | { kind: "completion" };
 
 export const AGE_OPTIONS = ["18-19", "20-21", "22+", "Prefer not to say"] as const;
@@ -69,6 +70,7 @@ export type PhaseTimedAnswer = {
 export type PhaseChoiceAnswer = {
   choice: string;
   explanation: string;
+  confidence: string;
 };
 
 export type SessionRecord = {
@@ -106,7 +108,7 @@ export function scenarioHeading(phase: 1 | 2 | 3, index: number): string {
   return `${phaseHeading(phase)} scenario ${index + 1}`;
 }
 
-export function buildSteps(phaseICount: number, phaseIICount: number): Step[] {
+export function buildSteps(phaseICount: number, phaseIICount: number, group: Group = "Control"): Step[] {
   const steps: Step[] = [
     { kind: "consent" },
     { kind: "demographics" },
@@ -121,7 +123,11 @@ export function buildSteps(phaseICount: number, phaseIICount: number): Step[] {
   steps.push({ kind: "instructions", phase: 2 });
   for (let index = 0; index < phaseIICount; index += 1) {
     steps.push({ kind: "decision", phase: 2, index, timed: false });
-    steps.push({ kind: "explanation", phase: 2, index, confidence: false });
+    if (group === "Experimental") {
+      steps.push({ kind: "confidence", phase: 2, index });
+    } else {
+      steps.push({ kind: "explanation", phase: 2, index, confidence: false });
+    }
   }
 
   steps.push({ kind: "instructions", phase: 3 });
@@ -145,6 +151,10 @@ export function explanationCanContinue(explanation: string, confidence: string |
   if (!explanation.trim()) return "incomplete";
   if (confidence !== null && !confidence) return "incomplete";
   return "ok";
+}
+
+export function confidenceCanContinue(confidence: string): "ok" | "incomplete" {
+  return confidence ? "ok" : "incomplete";
 }
 
 export function isSession(value: string): value is Session {
@@ -177,10 +187,13 @@ export function phaseIInstructionParagraphs(count: number): InstructionBlock[] {
 export function phaseIIInstructionParagraphs(count: number, group: Group): InstructionBlock[] {
   const life = group === "Control" ? "life " : "";
   const lead = `You will be given ${count} more ${life}${scenarioWord(count)} where you will have to decide between two options. Please make your best judgment based on the information presented.`;
-  const explain = "After each scenario, you will briefly explain your choice.";
-  if (group === "Control") return paragraphs([lead, explain]);
+  const followUp =
+    group === "Control"
+      ? "After each scenario, you will briefly explain your choice."
+      : "After each scenario, you will be asked to report your confidence in your decision.";
+  if (group === "Control") return paragraphs([lead, followUp]);
   return [
-    ...paragraphs([lead, explain]),
+    ...paragraphs([lead, followUp]),
     {
       type: "emphasis",
       text: "For this phase, you are required to utilize ChatGPT to assist in your decision-making process.",
@@ -247,6 +260,8 @@ export function buildSubmission(record: SessionRecord, timestamp: string): Sheet
   // Group stays in this position and stores sessionToGroup(session).
   // The live sheet already has a response row, so Session is not a column.
   // Explanation columns are appended after every existing column.
+  // Phase II confidence columns are appended after those explanation columns.
+  // Do not insert them beside the Phase II choice columns.
   const headers = [
     "Timestamp",
     "Full Name",
@@ -298,6 +313,11 @@ export function buildSubmission(record: SessionRecord, timestamp: string): Sheet
   record.phase3.forEach((item, index) => {
     headers.push(`Phase III Scenario ${index + 1} Explanation`);
     values.push(item.explanation);
+  });
+
+  record.phase2.forEach((item, index) => {
+    headers.push(`Phase II Scenario ${index + 1} Confidence`);
+    values.push(item.confidence);
   });
 
   return { headers, values };

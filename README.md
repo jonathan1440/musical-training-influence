@@ -35,7 +35,7 @@ The static site is written to `out/`. `npm test` checks the questionnaire page o
 2. Reload. Choose **Yes**, type a name, and continue.
 3. Answer every demographics question. The session question is **Monday** or **Tuesday**. The questionnaire does not assign it. Participants never see the words Control or Experimental. Monday is stored as Control: Phase II has no AI instruction, Phase III has no “no AI” line, and completion is the thank-you only. Tuesday is stored as Experimental: Phase II requires the ChatGPT thread, Phase III says no AI assistance is permitted, and completion includes the ChatGPT handoff.
 4. Phase I instructions say life scenarios, and that after each scenario the participant explains the choice and reports confidence. Each scenario is a timed decision page, then an untimed page with a required explanation and the confidence scale.
-5. Phase II instructions differ by session. Monday says more life scenarios and asks for a brief explanation, with no AI instruction. Tuesday says more scenarios, asks for a brief explanation, then requires one ChatGPT thread. Each scenario is an untimed decision page, then an untimed explanation page. Phase II has no confidence question and no time recording.
+5. Phase II instructions differ by session. Monday says more life scenarios and asks for a brief explanation, with no AI instruction. Tuesday says more scenarios, then this sentence: “After each scenario, you will be asked to report your confidence in your decision.” Tuesday keeps the bold ChatGPT requirement and its bullet list, and still requires one thread. Monday is an untimed decision page, then an untimed explanation page, with no confidence question. Tuesday is an untimed decision page, then an untimed confidence page, with no explanation. Phase II does not record time.
 6. Phase III instructions differ by session. Monday says last life scenarios, then explanation and confidence. Tuesday says last scenarios, then explanation and confidence, and adds “No AI assistance is permitted for this phase.” The scenario count matches Phase I. Decision pages are timed. Explanation and confidence pages are not.
 7. The completion page differs by session. Tuesday asks the participant to share the ChatGPT thread with susannaziesmer@southern.edu, subject `AI Study - [their name]`.
 
@@ -62,15 +62,15 @@ The live sheet already exists, with a tab named **AI Decision Study**. Do not cr
 
 Do not commit the URL.
 
-Redeploy before the next session. Until that deployment is live, a declined name is not stored on the Declined consent tab, and explanation answers are not labeled on the header row. The script currently deployed will treat a declined post as an ordinary row.
+Redeploy before the next session. Until that deployment is live, a declined name is not stored on the Declined consent tab, and explanation answers and Phase II confidence answers are not labeled on the header row. The script currently deployed will treat a declined post as an ordinary row.
 
 The script appends one completed session per row on **AI Decision Study**. A consent **No** posts `declined: true` and is written only to a tab named **Declined consent**, with Timestamp and Full Name. It is not added to the response rows.
 
-A response row keeps the existing columns in place: timestamp, full name, age, gender, generative-AI frequency, primary use, use for decisions, group, each choice, each confidence rating, and seconds on each Phase I and Phase III decision page. Phase II columns in that block are choices only. Explanation answers are new columns at the end of the row, in order: every Phase I Scenario N Explanation, then Phase II, then Phase III. The script appends those header cells on row 1 when they are missing. It does not rewrite existing header cells. Older response rows leave the new cells blank.
+A response row keeps the existing columns in place: timestamp, full name, age, gender, generative-AI frequency, primary use, use for decisions, group, each choice, each confidence rating, and seconds on each Phase I and Phase III decision page. Phase II columns in that block are choices only. Explanation answers are columns at the end of that block, in order: every Phase I Scenario N Explanation, then Phase II, then Phase III. Phase II confidence answers are appended after those explanation columns. They are not inserted beside the Phase II choice columns. The script appends missing header cells on row 1 when a later completed session includes them. It does not rewrite existing header cells. Older response rows leave the new cells blank. Monday rows leave Phase II confidence blank. Tuesday rows leave Phase II explanations blank.
 
 The Group column stays where it is and stores the mapped condition: Monday → Control, Tuesday → Experimental. A Session column was not added. Inserting one would shift Group away from the existing header.
 
-Only Phase I and Phase III decision pages record seconds. Explanation pages, Phase II, instruction pages, and completion are not timed.
+Only Phase I and Phase III decision pages record seconds. Explanation pages, Phase II (including Tuesday’s confidence pages), instruction pages, and completion are not timed.
 
 If you change the scenario counts after real responses exist, use a new tab or spreadsheet. Existing header cells stay as they are.
 
